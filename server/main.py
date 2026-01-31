@@ -14,6 +14,13 @@ from server.core import scoring as scoring_core
 from server.core.state import SessionState, load_session_state
 from server.llm import cli_gemini, cli_openai, mock
 
+from pathlib import Path
+from dotenv import load_dotenv
+
+ENV_PATH = Path(__file__).resolve().parents[1] / ".env"   # points at interview_game/.env
+load_dotenv(dotenv_path=ENV_PATH, override=True)
+
+
 app = FastAPI()
 
 SESSIONS: Dict[str, SessionState] = {}
