@@ -1,6 +1,7 @@
 const state = {
   sessionId: null,
   currentQuestionId: null,
+  answeredCount: 0,
 };
 
 const elements = {
@@ -14,7 +15,11 @@ const elements = {
   questionText: document.getElementById("questionText"),
   answerForm: document.getElementById("answerForm"),
   answerText: document.getElementById("answerText"),
-  nextQuestion: document.getElementById("nextQuestion"),
+  submitAnswer: document.getElementById("submitAnswer"),
+  submitStatus: document.getElementById("submitStatus"),
+  progressFill: document.getElementById("progressFill"),
+  progressSteps: document.getElementById("progressSteps"),
+  progressText: document.getElementById("progressText"),
   summaryCard: document.getElementById("summaryCard"),
   overallScore: document.getElementById("overallScore"),
   strengthsList: document.getElementById("strengthsList"),
@@ -22,9 +27,29 @@ const elements = {
   personaFeedbackList: document.getElementById("personaFeedbackList"),
 };
 
+const TOTAL_QUESTIONS = 5;
+
 const setStatus = (status, message = "") => {
   elements.sessionStatus.textContent = status;
   elements.statusMessage.textContent = message;
+};
+
+const setSubmitting = (isSubmitting) => {
+  elements.submitStatus.hidden = !isSubmitting;
+  elements.submitAnswer.disabled = isSubmitting || !state.currentQuestionId;
+};
+
+const updateProgress = () => {
+  const steps = Array.from(elements.progressSteps.children);
+  steps.forEach((step, index) => {
+    const isComplete = index < state.answeredCount;
+    const isActive = index === state.answeredCount && state.currentQuestionId;
+    step.classList.toggle("is-complete", isComplete);
+    step.classList.toggle("is-active", isActive);
+  });
+  const percent = Math.min(state.answeredCount / TOTAL_QUESTIONS, 1) * 100;
+  elements.progressFill.style.width = `${percent}%`;
+  elements.progressText.textContent = `${state.answeredCount} of ${TOTAL_QUESTIONS} answered`;
 };
 
 const setQuestion = (question) => {
@@ -33,12 +58,14 @@ const setQuestion = (question) => {
     elements.roundPill.textContent = "Round —";
     elements.personaPill.textContent = "Persona —";
     state.currentQuestionId = null;
+    setSubmitting(false);
     return;
   }
   elements.questionText.textContent = question.text;
   elements.roundPill.textContent = `Round ${question.round}`;
   elements.personaPill.textContent = `Persona ${question.persona}`;
   state.currentQuestionId = question.question_id;
+  setSubmitting(false);
 };
 
 const setSummary = (summary) => {
@@ -82,10 +109,36 @@ const fetchNextQuestion = async () => {
   setQuestion(question);
 };
 
+const initProgress = () => {
+  elements.progressSteps.innerHTML = "";
+  for (let i = 0; i < TOTAL_QUESTIONS; i += 1) {
+    const step = document.createElement("span");
+    step.className = "progress-step";
+    elements.progressSteps.appendChild(step);
+  }
+  updateProgress();
+};
+
+const endSession = async () => {
+  setStatus("Complete", "Interview complete. Generating summary...");
+  try {
+    const result = await apiRequest(`/sessions/${state.sessionId}/end`, {
+      method: "POST",
+    });
+    setSummary(result.summary);
+  } catch (summaryError) {
+    setStatus("Error", summaryError.message);
+  } finally {
+    setQuestion(null);
+  }
+};
+
 elements.startForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   setStatus("Starting", "Generating rubric and first question...");
   setSummary(null);
+  state.answeredCount = 0;
+  updateProgress();
   try {
     const payload = {
       job_spec: elements.jobSpec.value.trim(),
@@ -110,6 +163,7 @@ elements.answerForm.addEventListener("submit", async (event) => {
     setStatus("Error", "No active question to answer.");
     return;
   }
+  setSubmitting(true);
   setStatus("Scoring", "Submitting your answer for evaluation...");
   try {
     await apiRequest(`/sessions/${state.sessionId}/answer`, {
@@ -120,32 +174,26 @@ elements.answerForm.addEventListener("submit", async (event) => {
       }),
     });
     elements.answerText.value = "";
-    setStatus("Answered", "Answer submitted. Get the next question when ready.");
+    state.answeredCount += 1;
+    updateProgress();
+    setStatus("Answered", "Answer submitted. Fetching the next question...");
+    try {
+      await fetchNextQuestion();
+      setStatus("Active", `Session ID: ${state.sessionId}`);
+    } catch (error) {
+      if (error.message.includes("Interview already complete")) {
+        await endSession();
+      } else {
+        setStatus("Error", error.message);
+      }
+    } finally {
+      setSubmitting(false);
+    }
   } catch (error) {
     setStatus("Error", error.message);
-  }
-});
-
-elements.nextQuestion.addEventListener("click", async () => {
-  setStatus("Loading", "Fetching the next question...");
-  try {
-    await fetchNextQuestion();
-    setStatus("Active", `Session ID: ${state.sessionId}`);
-  } catch (error) {
-    if (error.message.includes("Interview already complete")) {
-      setStatus("Complete", "Interview complete. Generating summary...");
-      try {
-        const result = await apiRequest(`/sessions/${state.sessionId}/end`, {
-          method: "POST",
-        });
-        setSummary(result.summary);
-      } catch (summaryError) {
-        setStatus("Error", summaryError.message);
-      }
-    } else {
-      setStatus("Error", error.message);
-    }
+    setSubmitting(false);
   }
 });
 
 setQuestion(null);
+initProgress();

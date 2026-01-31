@@ -79,7 +79,7 @@ def main() -> None:
 
     console.print(f"Session started: {session_id}")
 
-    total_questions = 14
+    total_questions = 5
     for _ in range(total_questions):
         q_resp = requests.post(f"{API_URL}/sessions/{session_id}/next_question", timeout=60)
         if q_resp.status_code != 200:
