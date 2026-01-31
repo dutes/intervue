@@ -41,6 +41,13 @@
 
       <section class="card">
         <h2>Current question</h2>
+        <div class="progress-wrapper" aria-label="Interview progress">
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+            <div class="progress-steps" id="progressSteps" aria-hidden="true"></div>
+          </div>
+          <p class="progress-text" id="progressText">0 of 5 answered</p>
+        </div>
         <div class="question-meta">
           <p class="pill" id="roundPill">Round —</p>
           <p class="pill" id="personaPill">Persona —</p>
@@ -53,8 +60,11 @@
             <textarea id="answerText" rows="5" required></textarea>
           </label>
           <div class="actions">
-            <button class="secondary" id="nextQuestion" type="button">Get next question</button>
-            <button class="primary" type="submit">Submit answer</button>
+            <button class="primary" id="submitAnswer" type="submit">Submit answer</button>
+            <div class="submit-status" id="submitStatus" role="status" aria-live="polite" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              <span>Submitting answer</span>
+            </div>
           </div>
         </form>
       </section>

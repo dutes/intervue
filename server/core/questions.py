@@ -29,10 +29,11 @@ ROUNDS: List[Dict[str, Any]] = [
 ]
 
 DEFAULT_PERSONA = "neutral"
+MAX_TOTAL_QUESTIONS = 5
 
 
 def total_questions() -> int:
-    return sum(r["count"] for r in ROUNDS)
+    return min(MAX_TOTAL_QUESTIONS, sum(r["count"] for r in ROUNDS))
 
 
 def round_for_index(index: int) -> Tuple[Dict[str, Any], int]:
