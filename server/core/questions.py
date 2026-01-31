@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Tuple
 
 from server.core.personas import persona_style
+from server.core.json_utils import parse_json_response
 from server.llm.schemas import Question
 
 ROUNDS: List[Dict[str, Any]] = [
@@ -95,7 +96,7 @@ def _call_and_validate(prompt: str, provider: str) -> Dict[str, Any]:
     for _ in range(attempts):
         raw = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1)
         try:
-            parsed = json.loads(raw)
+            parsed = parse_json_response(raw)
             question = parse_question(parsed)
             payload = question.model_dump()
             payload["prompt"] = prompt

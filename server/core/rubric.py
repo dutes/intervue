@@ -5,6 +5,7 @@ from typing import Any, Dict, Tuple
 
 from server.llm import cli_gemini, cli_openai, mock
 from server.llm.schemas import Rubric
+from server.core.json_utils import parse_json_response
 
 
 class LLMResult:
@@ -41,7 +42,7 @@ def _call_and_validate(prompt: str, provider: str) -> Tuple[Dict[str, Any], str,
     for _ in range(attempts):
         raw, _responses = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1)
         try:
-            parsed = json.loads(raw)
+            parsed = parse_json_response(raw)
             rubric = Rubric.model_validate(parsed)
             return rubric.model_dump(), raw, prompt
         except Exception as exc:  # noqa: BLE001

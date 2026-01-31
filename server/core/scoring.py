@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict
 
+from server.core.json_utils import parse_json_response
 from server.llm import cli_gemini, cli_openai, mock
 from server.llm.schemas import Rubric, Scorecard
 
@@ -44,7 +45,7 @@ def _call_and_validate(prompt: str, provider: str) -> tuple[Scorecard, str, str]
     for _ in range(attempts):
         raw = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1)
         try:
-            parsed = json.loads(raw)
+            parsed = parse_json_response(raw)
             scorecard = Scorecard.model_validate(parsed)
             return scorecard, raw, prompt
         except Exception as exc:  # noqa: BLE001
