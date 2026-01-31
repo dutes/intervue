@@ -129,7 +129,11 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    score_payload = scoring_core.score_answer(session.to_dict(), question, request.answer_text)
+    personas = ["positive", "neutral", "hostile"]
+    score_payloads = [
+        scoring_core.score_answer(session.to_dict(), question, request.answer_text, persona)
+        for persona in personas
+    ]
     session.answers.append(
         {
             "question_id": request.question_id,
@@ -137,23 +141,26 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
             "timestamp": time.time(),
         }
     )
-    session.scores.append(
-        {
-            "question_id": request.question_id,
-            "scorecard": score_payload["scorecard"],
-            "overall_score": score_payload["overall_score"],
-            "timestamp": time.time(),
-        }
-    )
-    session.logs.append(
-        {
-            "type": "scoring",
-            "prompt": score_payload.get("prompt"),
-            "raw_response": score_payload.get("raw_response"),
-            "parsed": score_payload.get("scorecard"),
-            "timestamp": time.time(),
-        }
-    )
+    for persona, score_payload in zip(personas, score_payloads):
+        session.scores.append(
+            {
+                "question_id": request.question_id,
+                "persona": persona,
+                "scorecard": score_payload["scorecard"],
+                "overall_score": score_payload["overall_score"],
+                "timestamp": time.time(),
+            }
+        )
+        session.logs.append(
+            {
+                "type": "scoring",
+                "persona": persona,
+                "prompt": score_payload.get("prompt"),
+                "raw_response": score_payload.get("raw_response"),
+                "parsed": score_payload.get("scorecard"),
+                "timestamp": time.time(),
+            }
+        )
     session.save()
     return {"ok": True}
 
