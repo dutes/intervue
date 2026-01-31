@@ -5,6 +5,8 @@ import time
 from typing import Dict, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from server.core import questions as question_core
@@ -21,7 +23,11 @@ ENV_PATH = Path(__file__).resolve().parents[1] / ".env"   # points at interview_
 load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 
+BASE_DIR = Path(__file__).resolve().parent
+WEB_DIR = BASE_DIR / "web"
+
 app = FastAPI()
+app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 SESSIONS: Dict[str, SessionState] = {}
 
@@ -40,6 +46,11 @@ class AnswerRequest(BaseModel):
 @app.get("/health")
 async def health() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index() -> HTMLResponse:
+    return HTMLResponse((WEB_DIR / "index.html").read_text(encoding="utf-8"))
 
 
 def _get_session(session_id: str) -> SessionState:
