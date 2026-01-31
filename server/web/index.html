@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Interview Game</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Interview Game</p>
+          <h1>Practice interviews with guided questions</h1>
+          <p class="subhead">
+            Fill out your role details, start a session, and answer each question in the text
+            field below.
+          </p>
+        </div>
+        <div class="status-card">
+          <p class="status-label">Session</p>
+          <p id="sessionStatus" class="status-value">Not started</p>
+          <p id="statusMessage" class="status-message"></p>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2>Start a session</h2>
+        <form id="startForm" class="stack">
+          <label class="field">
+            <span>Target role or job spec</span>
+            <textarea id="jobSpec" rows="4" required></textarea>
+          </label>
+          <label class="field">
+            <span>Your CV / resume text</span>
+            <textarea id="cvText" rows="4" required></textarea>
+          </label>
+          <button class="primary" type="submit">Start interview</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Current question</h2>
+        <div class="question-meta">
+          <p class="pill" id="roundPill">Round —</p>
+          <p class="pill" id="personaPill">Persona —</p>
+        </div>
+        <p id="questionText" class="question-text">Start a session to receive a question.</p>
+
+        <form id="answerForm" class="stack">
+          <label class="field">
+            <span>Your answer</span>
+            <textarea id="answerText" rows="5" required></textarea>
+          </label>
+          <div class="actions">
+            <button class="secondary" id="nextQuestion" type="button">Get next question</button>
+            <button class="primary" type="submit">Submit answer</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card" id="summaryCard" hidden>
+        <h2>Session summary</h2>
+        <p class="summary-score" id="overallScore"></p>
+        <div class="summary-columns">
+          <div>
+            <h3>Strengths</h3>
+            <ul id="strengthsList"></ul>
+          </div>
+          <div>
+            <h3>Areas to improve</h3>
+            <ul id="weaknessesList"></ul>
+          </div>
+        </div>
+        <div>
+          <h3>Persona feedback</h3>
+          <ul id="personaFeedbackList"></ul>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
