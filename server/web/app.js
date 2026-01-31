@@ -2,6 +2,9 @@ const state = {
   sessionId: null,
   currentQuestionId: null,
   answeredCount: 0,
+  provider: null,
+  apiKey: null,
+  pendingStart: false,
 };
 
 const elements = {
@@ -25,6 +28,12 @@ const elements = {
   strengthsList: document.getElementById("strengthsList"),
   weaknessesList: document.getElementById("weaknessesList"),
   personaFeedbackList: document.getElementById("personaFeedbackList"),
+  apiKeyDialog: document.getElementById("apiKeyDialog"),
+  apiKeyForm: document.getElementById("apiKeyForm"),
+  providerSelect: document.getElementById("providerSelect"),
+  apiKeyInput: document.getElementById("apiKeyInput"),
+  apiKeyHint: document.getElementById("apiKeyHint"),
+  apiKeyError: document.getElementById("apiKeyError"),
 };
 
 const TOTAL_QUESTIONS = 5;
@@ -135,6 +144,39 @@ const apiRequest = async (url, options = {}) => {
   return response.json();
 };
 
+const showApiKeyDialog = () => {
+  elements.apiKeyError.hidden = true;
+  elements.apiKeyError.textContent = "";
+  if (state.provider) {
+    elements.providerSelect.value = state.provider;
+  }
+  elements.apiKeyInput.value = state.apiKey ?? "";
+  elements.apiKeyDialog.showModal();
+};
+
+const updateApiKeyHint = () => {
+  const provider = elements.providerSelect.value;
+  const needsKey = provider === "openai" || provider === "gemini";
+  elements.apiKeyHint.textContent = needsKey ? "Required for OpenAI and Gemini." : "No key required for mock.";
+  elements.apiKeyInput.toggleAttribute("required", needsKey);
+  elements.apiKeyInput.disabled = !needsKey;
+};
+
+const persistApiKey = () => {
+  const provider = elements.providerSelect.value;
+  const apiKey = elements.apiKeyInput.value.trim();
+  const needsKey = provider === "openai" || provider === "gemini";
+  if (needsKey && !apiKey) {
+    elements.apiKeyError.textContent = "Please enter an API key to continue.";
+    elements.apiKeyError.hidden = false;
+    return false;
+  }
+  state.provider = provider;
+  state.apiKey = needsKey ? apiKey : null;
+  elements.apiKeyDialog.close();
+  return true;
+};
+
 const fetchNextQuestion = async () => {
   if (!state.sessionId) {
     throw new Error("Start a session first.");
@@ -171,6 +213,11 @@ const endSession = async () => {
 
 elements.startForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!state.provider) {
+    state.pendingStart = true;
+    showApiKeyDialog();
+    return;
+  }
   setStatus("Starting", "Generating rubric and first question...");
   setSummary(null);
   state.answeredCount = 0;
@@ -179,7 +226,8 @@ elements.startForm.addEventListener("submit", async (event) => {
     const payload = {
       job_spec: elements.jobSpec.value.trim(),
       cv_text: elements.cvText.value.trim(),
-      provider: "openai",
+      provider: state.provider,
+      api_key: state.apiKey,
     };
     const data = await apiRequest("/sessions/start", {
       method: "POST",
@@ -231,5 +279,20 @@ elements.answerForm.addEventListener("submit", async (event) => {
   }
 });
 
+elements.providerSelect.addEventListener("change", updateApiKeyHint);
+
+elements.apiKeyForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!persistApiKey()) {
+    return;
+  }
+  updateApiKeyHint();
+  if (state.pendingStart) {
+    state.pendingStart = false;
+    elements.startForm.requestSubmit();
+  }
+});
+
 setQuestion(null);
 initProgress();
+updateApiKeyHint();
