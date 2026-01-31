@@ -12,7 +12,7 @@ from server.core import reports as report_core
 from server.core import rubric as rubric_core
 from server.core import scoring as scoring_core
 from server.core.state import SessionState, load_session_state
-from server.llm import cli_gemini, cli_openai, mock
+from server.llm import cli_openai
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -59,26 +59,17 @@ def _get_session(session_id: str) -> SessionState:
     return state
 
 
-def _verify_provider(provider: str) -> None:
-    if provider == "openai":
-        if not os.getenv("OPENAI_API_KEY"):
-            raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
-        cli_openai.test_connection()
-    elif provider == "gemini":
-        if not os.getenv("GEMINI_API_KEY"):
-            raise HTTPException(status_code=400, detail="GEMINI_API_KEY is not set")
-        cli_gemini.test_connection()
-    elif provider == "mock":
-        mock.test_connection()
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported provider")
+def _verify_provider() -> None:
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
+    cli_openai.test_connection()
 
 
 @app.post("/sessions/start")
 async def start_session(request: StartRequest) -> Dict[str, str]:
-    provider = request.provider.lower()
+    provider = "openai"
     try:
-        _verify_provider(provider)
+        _verify_provider()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -138,7 +129,11 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    score_payload = scoring_core.score_answer(session.to_dict(), question, request.answer_text)
+    personas = ["positive", "neutral", "hostile"]
+    score_payloads = [
+        scoring_core.score_answer(session.to_dict(), question, request.answer_text, persona)
+        for persona in personas
+    ]
     session.answers.append(
         {
             "question_id": request.question_id,
@@ -146,23 +141,26 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
             "timestamp": time.time(),
         }
     )
-    session.scores.append(
-        {
-            "question_id": request.question_id,
-            "scorecard": score_payload["scorecard"],
-            "overall_score": score_payload["overall_score"],
-            "timestamp": time.time(),
-        }
-    )
-    session.logs.append(
-        {
-            "type": "scoring",
-            "prompt": score_payload.get("prompt"),
-            "raw_response": score_payload.get("raw_response"),
-            "parsed": score_payload.get("scorecard"),
-            "timestamp": time.time(),
-        }
-    )
+    for persona, score_payload in zip(personas, score_payloads):
+        session.scores.append(
+            {
+                "question_id": request.question_id,
+                "persona": persona,
+                "scorecard": score_payload["scorecard"],
+                "overall_score": score_payload["overall_score"],
+                "timestamp": time.time(),
+            }
+        )
+        session.logs.append(
+            {
+                "type": "scoring",
+                "persona": persona,
+                "prompt": score_payload.get("prompt"),
+                "raw_response": score_payload.get("raw_response"),
+                "parsed": score_payload.get("scorecard"),
+                "timestamp": time.time(),
+            }
+        )
     session.save()
     return {"ok": True}
 
