@@ -85,9 +85,42 @@ const setSummary = (summary) => {
       listElement.appendChild(li);
     });
   };
+  const renderPersonaFeedback = (listElement, feedbackItems) => {
+    listElement.innerHTML = "";
+    feedbackItems.forEach((feedback) => {
+      if (typeof feedback === "string") {
+        const li = document.createElement("li");
+        li.textContent = feedback;
+        listElement.appendChild(li);
+        return;
+      }
+      const li = document.createElement("li");
+      const title = document.createElement("strong");
+      title.textContent = `${feedback.persona?.toUpperCase() ?? "PERSONA"}: `;
+      li.appendChild(title);
+
+      const lines = [
+        ...(feedback.positives || []).map((text) => `✅ ${text}`),
+        ...(feedback.concerns || []).map((text) => `⚠️ ${text}`),
+      ];
+      if (feedback.next_step) {
+        lines.push(`➡️ ${feedback.next_step}`);
+      }
+      if (lines.length) {
+        const detailList = document.createElement("ul");
+        lines.forEach((line) => {
+          const detailItem = document.createElement("li");
+          detailItem.textContent = line;
+          detailList.appendChild(detailItem);
+        });
+        li.appendChild(detailList);
+      }
+      listElement.appendChild(li);
+    });
+  };
   fillList(elements.strengthsList, summary.strengths || []);
   fillList(elements.weaknessesList, summary.weaknesses || []);
-  fillList(elements.personaFeedbackList, summary.persona_feedback || []);
+  renderPersonaFeedback(elements.personaFeedbackList, summary.persona_feedback || []);
 };
 
 const apiRequest = async (url, options = {}) => {
