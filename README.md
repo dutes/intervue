@@ -35,6 +35,10 @@ uvicorn server.main:app --reload
 python client/cli.py
 ```
 
+## Web UI
+
+Open `http://127.0.0.1:8000` to use the web client. You'll be prompted for your provider and API key in a setup dialog before starting a session.
+
 ## Mock Mode
 
 If you want to run without any LLM access, pick the `mock` provider when prompted. It generates deterministic placeholder questions and scores.
