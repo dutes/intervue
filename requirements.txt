@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pydantic
+requests
+typer
+rich
+matplotlib
