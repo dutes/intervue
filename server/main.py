@@ -14,7 +14,7 @@ from server.core import reports as report_core
 from server.core import rubric as rubric_core
 from server.core import scoring as scoring_core
 from server.core.state import SessionState, load_session_state
-from server.llm import cli_openai
+from server.llm import cli_gemini, cli_openai
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -36,6 +36,7 @@ class StartRequest(BaseModel):
     job_spec: str = Field(min_length=10)
     cv_text: str = Field(min_length=10)
     provider: str
+    api_key: Optional[str] = None
 
 
 class AnswerRequest(BaseModel):
@@ -70,17 +71,45 @@ def _get_session(session_id: str) -> SessionState:
     return state
 
 
-def _verify_provider() -> None:
-    if not os.getenv("OPENAI_API_KEY"):
-        raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
-    cli_openai.test_connection()
+def _normalize_provider(provider: str) -> str:
+    return provider.strip().lower()
+
+
+def _set_api_key(provider: str, api_key: Optional[str]) -> None:
+    if not api_key:
+        return
+    if provider == "openai":
+        os.environ["OPENAI_API_KEY"] = api_key
+    elif provider == "gemini":
+        os.environ["GEMINI_API_KEY"] = api_key
+
+
+def _verify_provider(provider: str, api_key: Optional[str]) -> None:
+    provider = _normalize_provider(provider)
+    if provider == "mock":
+        return
+
+    _set_api_key(provider, api_key)
+
+    if provider == "openai":
+        if not os.getenv("OPENAI_API_KEY"):
+            raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
+        cli_openai.test_connection()
+        return
+    if provider == "gemini":
+        if not os.getenv("GEMINI_API_KEY"):
+            raise HTTPException(status_code=400, detail="GEMINI_API_KEY is not set")
+        cli_gemini.test_connection()
+        return
+
+    raise HTTPException(status_code=400, detail="Unsupported provider")
 
 
 @app.post("/sessions/start")
 async def start_session(request: StartRequest) -> Dict[str, str]:
-    provider = "openai"
+    provider = _normalize_provider(request.provider)
     try:
-        _verify_provider()
+        _verify_provider(provider, request.api_key)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

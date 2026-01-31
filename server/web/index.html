@@ -89,6 +89,34 @@
       </section>
     </main>
 
+    <dialog class="dialog" id="apiKeyDialog">
+      <form class="dialog-card stack" id="apiKeyForm" method="dialog">
+        <div>
+          <p class="dialog-title">Connect your LLM</p>
+          <p class="dialog-subtitle">
+            Choose a provider and enter an API key before starting your session.
+          </p>
+        </div>
+        <label class="field">
+          <span>Provider</span>
+          <select id="providerSelect" required>
+            <option value="openai">OpenAI</option>
+            <option value="gemini">Gemini</option>
+            <option value="mock">Mock (no key)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>API key</span>
+          <input id="apiKeyInput" type="password" autocomplete="off" />
+          <span class="field-hint" id="apiKeyHint">Required for OpenAI and Gemini.</span>
+        </label>
+        <p class="dialog-error" id="apiKeyError" hidden></p>
+        <div class="actions">
+          <button class="primary" type="submit">Continue</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="/static/app.js"></script>
   </body>
 </html>
