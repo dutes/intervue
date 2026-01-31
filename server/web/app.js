@@ -58,6 +58,7 @@ const setQuestion = (question) => {
     elements.roundPill.textContent = "Round —";
     elements.personaPill.textContent = "Persona —";
     state.currentQuestionId = null;
+    elements.answerForm.hidden = true;
     setSubmitting(false);
     return;
   }
@@ -65,6 +66,7 @@ const setQuestion = (question) => {
   elements.roundPill.textContent = `Round ${question.round}`;
   elements.personaPill.textContent = `Persona ${question.persona}`;
   state.currentQuestionId = question.question_id;
+  elements.answerForm.hidden = false;
   setSubmitting(false);
 };
 
