@@ -21,12 +21,20 @@ def compute_competency_averages(scores: List[Dict[str, Any]]) -> Dict[str, float
     return {name: round(_avg(vals) * 25, 2) for name, vals in totals.items()}
 
 
-def compute_persona_averages(scores: List[Dict[str, Any]], questions: List[Dict[str, Any]]) -> Dict[str, float]:
+def compute_persona_averages(scores: List[Dict[str, Any]]) -> Dict[str, float]:
     bucket: Dict[str, List[float]] = {}
-    for score, question in zip(scores, questions):
-        persona = question["persona"]
+    for score in scores:
+        persona = score.get("persona", "neutral")
         bucket.setdefault(persona, []).append(score["overall_score"])
     return {persona: round(_avg(vals), 2) for persona, vals in bucket.items()}
+
+
+def compute_question_overall_scores(scores: List[Dict[str, Any]]) -> List[float]:
+    buckets: Dict[str, List[float]] = {}
+    for score in scores:
+        question_id = score["question_id"]
+        buckets.setdefault(question_id, []).append(score["overall_score"])
+    return [round(_avg(values), 2) for _qid, values in sorted(buckets.items())]
 
 
 def generate_charts(session_id: str, competency_avgs: Dict[str, float], overall_scores: List[float], persona_avgs: Dict[str, float]) -> Dict[str, str]:
@@ -116,8 +124,7 @@ def generate_persona_feedback(session: Dict[str, Any], strengths: List[str], wea
 
 def build_report(session: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str]]:
     scores = session.get("scores", [])
-    questions = session.get("questions", [])
-    overall_scores = [entry["overall_score"] for entry in scores]
+    overall_scores = compute_question_overall_scores(scores)
     overall_score = round(_avg(overall_scores), 2)
 
     competency_avgs = compute_competency_averages(scores)
@@ -125,7 +132,7 @@ def build_report(session: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str
     strengths = [name for name, _ in sorted_competencies[:3]]
     weaknesses = [name for name, _ in sorted_competencies[-3:]]
 
-    persona_avgs = compute_persona_averages(scores, questions)
+    persona_avgs = compute_persona_averages(scores)
     report_paths = generate_charts(session["session_id"], competency_avgs, overall_scores, persona_avgs)
 
     persona_feedback = generate_persona_feedback(session, strengths, weaknesses)
