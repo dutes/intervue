@@ -1,0 +1,125 @@
+from __future__ import annotations
+
+import json
+from typing import Any, Dict, List, Tuple
+
+from server.core.personas import persona_style
+from server.llm.schemas import Question
+
+ROUNDS: List[Dict[str, Any]] = [
+    {
+        "name": "screening",
+        "label": "Round 1",
+        "count": 4,
+        "goal": "Establish baseline fit and core experience.",
+    },
+    {
+        "name": "deep_dive",
+        "label": "Round 2",
+        "count": 6,
+        "goal": "Explore depth, impact, and technical decision-making.",
+    },
+    {
+        "name": "challenge",
+        "label": "Round 3",
+        "count": 4,
+        "goal": "Stress-test claims and assess judgment under pressure.",
+    },
+]
+
+PERSONA_ORDER = ["positive", "neutral", "hostile"]
+
+
+def total_questions() -> int:
+    return sum(r["count"] for r in ROUNDS)
+
+
+def round_for_index(index: int) -> Tuple[Dict[str, Any], int]:
+    running = 0
+    for round_index, round_info in enumerate(ROUNDS, start=1):
+        running += round_info["count"]
+        if index < running:
+            return round_info, round_index
+    return ROUNDS[-1], len(ROUNDS)
+
+
+def persona_for_index(index: int) -> str:
+    return PERSONA_ORDER[index % len(PERSONA_ORDER)]
+
+
+def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], persona: str, question_id: str) -> str:
+    rubric_json = json.dumps(session["rubric"], indent=2)
+    style = persona_style(persona)
+    return (
+        f"Job Spec:\n{session['job_spec']}\n\n"
+        f"CV:\n{session['cv_text']}\n\n"
+        f"Rubric JSON:\n{rubric_json}\n\n"
+        f"Round: {round_info['name']} - {round_info['goal']}\n"
+        f"Persona: {persona} ({style})\n"
+        f"Question ID: {question_id}\n\n"
+        "Generate exactly one interview question."
+    )
+
+
+def parse_question(payload: Dict[str, Any]) -> Question:
+    return Question.model_validate(payload)
+
+
+from server.llm import cli_gemini, cli_openai, mock
+
+
+def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts: int = 3) -> str:
+    responses = []
+    last_error: str | None = None
+    for _ in range(attempts):
+        try:
+            if provider == "openai":
+                response = cli_openai.call_openai(prompt)
+            elif provider == "gemini":
+                response = cli_gemini.call_gemini(prompt)
+            else:
+                raise ValueError("Unsupported provider for LLM call")
+            responses.append(response)
+            return response
+        except Exception as exc:  # noqa: BLE001
+            last_error = str(exc)
+            prompt = f"{fix_prompt}\n\nOriginal Error: {last_error}\n\nInvalid Output:\n{responses[-1] if responses else ''}"
+    raise RuntimeError(last_error or "LLM call failed")
+
+
+def _call_and_validate(prompt: str, provider: str) -> Dict[str, Any]:
+    fix_prompt = cli_openai.JSON_FIX_PROMPT if provider == "openai" else cli_gemini.JSON_FIX_PROMPT
+    attempts = 3
+    raw = ""
+    error_message = ""
+    for _ in range(attempts):
+        raw = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1)
+        try:
+            parsed = json.loads(raw)
+            question = parse_question(parsed)
+            payload = question.model_dump()
+            payload["prompt"] = prompt
+            payload["raw_response"] = raw
+            return payload
+        except Exception as exc:  # noqa: BLE001
+            error_message = str(exc)
+            prompt = f\"{fix_prompt}\\n\\nValidation Error: {error_message}\\n\\nInvalid Output:\\n{raw}\"
+    raise RuntimeError(error_message or \"LLM JSON validation failed\")
+
+
+def generate_question(session: Dict[str, Any], index: int) -> Dict[str, Any]:
+    round_info, _round_num = round_for_index(index)
+    persona = persona_for_index(index)
+    question_id = f"q{index + 1}"
+
+    if session["provider"] == "mock":
+        question = mock.generate_question(session["session_id"], round_info["name"], persona, index)
+        question["prompt"] = "MOCK: question generation"
+        question["raw_response"] = json.dumps(question)
+        return question
+
+    prompt = (
+        f"{cli_openai.QUESTION_PROMPT if session['provider'] == 'openai' else cli_gemini.QUESTION_PROMPT}\n\n"
+        f"{build_question_prompt(session, round_info, persona, question_id)}"
+    )
+    return _call_and_validate(prompt, session["provider"])
