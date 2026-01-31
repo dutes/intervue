@@ -100,6 +100,7 @@ def call_openai(prompt: str, temperature: float = 0.2) -> str:
         "model": DEFAULT_MODEL,
         "input": prompt,
         "temperature": temperature,
+        "text": {"format": {"type": "json_object"}},
     }
 
     raw = _run_curl(payload)
@@ -124,5 +125,3 @@ def call_openai(prompt: str, temperature: float = 0.2) -> str:
 def test_connection() -> None:
     prompt = "Return STRICT JSON only: {\"ok\": true}"
     _ = call_openai(prompt, temperature=0)
-
-
