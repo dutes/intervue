@@ -6,8 +6,8 @@
 
 body {
   font-family: "Inter", "Segoe UI", sans-serif;
-  background: #f5f6fb;
-  color: #1f2937;
+  background: #0f172a;
+  color: #e2e8f0;
   line-height: 1.5;
 }
 
@@ -32,7 +32,7 @@ body {
   font-size: 0.85rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6366f1;
+  color: #a5b4fc;
   font-weight: 600;
   margin-bottom: 8px;
 }
@@ -44,7 +44,7 @@ h1 {
 
 .subhead {
   max-width: 520px;
-  color: #4b5563;
+  color: #cbd5f5;
 }
 
 .status-card {
@@ -60,7 +60,7 @@ h1 {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #9ca3af;
+  color: #cbd5f5;
   margin-bottom: 6px;
 }
 
@@ -72,14 +72,14 @@ h1 {
 .status-message {
   margin-top: 8px;
   font-size: 0.9rem;
-  color: #e5e7eb;
+  color: #e2e8f0;
 }
 
 .card {
-  background: #ffffff;
+  background: #111827;
   padding: 24px;
   border-radius: 16px;
-  box-shadow: 0 12px 24px rgba(148, 163, 184, 0.18);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.5);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -99,18 +99,19 @@ h1 {
 
 textarea {
   width: 100%;
-  border: 1px solid #d1d5db;
+  border: 1px solid #334155;
   border-radius: 12px;
   padding: 12px 14px;
   font-size: 1rem;
   resize: vertical;
-  background: #f9fafb;
+  background: #0b1220;
+  color: #e2e8f0;
 }
 
 textarea:focus {
-  outline: 2px solid #6366f1;
+  outline: 2px solid #818cf8;
   border-color: transparent;
-  background: #ffffff;
+  background: #0b1220;
 }
 
 .actions {
@@ -131,7 +132,7 @@ button {
 
 button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 8px 16px rgba(129, 140, 248, 0.25);
 }
 
 button:disabled {
@@ -147,8 +148,8 @@ button:disabled {
 }
 
 .secondary {
-  background: #e0e7ff;
-  color: #4338ca;
+  background: #1e293b;
+  color: #e2e8f0;
 }
 
 .question-meta {
@@ -157,8 +158,8 @@ button:disabled {
 }
 
 .pill {
-  background: #f3f4f6;
-  color: #374151;
+  background: #1f2937;
+  color: #e2e8f0;
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 0.85rem;
@@ -166,7 +167,7 @@ button:disabled {
 
 .question-text {
   font-size: 1.1rem;
-  color: #111827;
+  color: #f8fafc;
 }
 
 .progress-wrapper {
@@ -178,7 +179,7 @@ button:disabled {
 .progress-track {
   position: relative;
   height: 10px;
-  background: #e5e7eb;
+  background: #1f2937;
   border-radius: 999px;
 }
 
@@ -204,8 +205,8 @@ button:disabled {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #f3f4f6;
-  border: 3px solid #cbd5f5;
+  background: #0f172a;
+  border: 3px solid #4338ca;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
@@ -215,28 +216,28 @@ button:disabled {
 }
 
 .progress-step.is-active {
-  border-color: #6366f1;
-  background: #eef2ff;
+  border-color: #818cf8;
+  background: #1e1b4b;
 }
 
 .progress-text {
   font-size: 0.9rem;
-  color: #6b7280;
+  color: #94a3b8;
 }
 
 .submit-status {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #6b7280;
+  color: #94a3b8;
   font-size: 0.9rem;
 }
 
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #cbd5f5;
-  border-top-color: #6366f1;
+  border: 2px solid #334155;
+  border-top-color: #818cf8;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -250,7 +251,7 @@ button:disabled {
 .summary-score {
   font-size: 1.4rem;
   font-weight: 600;
-  color: #111827;
+  color: #f8fafc;
 }
 
 .summary-columns {
@@ -261,5 +262,5 @@ button:disabled {
 
 ul {
   padding-left: 18px;
-  color: #374151;
+  color: #cbd5f5;
 }
