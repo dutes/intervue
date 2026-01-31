@@ -12,7 +12,7 @@ pip install -r requirements.txt
 
 ## Environment Variables
 
-Choose one provider and set the API key:
+Choose one provider and set the API key (or enter it when the CLI prompts you):
 
 ```bash
 export OPENAI_API_KEY=your_key
@@ -34,6 +34,10 @@ uvicorn server.main:app --reload
 ```bash
 python client/cli.py
 ```
+
+## Web UI
+
+Open `http://127.0.0.1:8000` to use the web client. You'll be prompted for your provider and API key in a setup dialog before starting a session.
 
 ## Mock Mode
 
