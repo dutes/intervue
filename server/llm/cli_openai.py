@@ -101,20 +101,25 @@ def call_openai(prompt: str, temperature: float = 0.2) -> str:
         "input": prompt,
         "temperature": temperature,
     }
+
     raw = _run_curl(payload)
     data = json.loads(raw)
-    if "error" in data:
-        raise RuntimeError(f"OpenAI API error: {data['error']}")
+
+    # Responses API includes "error": null on success, so only fail if it's truthy.
+    err = data.get("error")
+    if err:
+        raise RuntimeError(f"OpenAI API error: {err}")
 
     output = ""
     for item in data.get("output", []):
         for content in item.get("content", []):
             if content.get("type") == "output_text":
                 output += content.get("text", "")
+
     if not output:
         raise RuntimeError("OpenAI response missing output text")
-    return output.strip()
 
+    return output.strip()
 
 def test_connection() -> None:
     prompt = "Return STRICT JSON only: {\"ok\": true}"

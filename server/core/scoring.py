@@ -49,8 +49,8 @@ def _call_and_validate(prompt: str, provider: str) -> tuple[Scorecard, str, str]
             return scorecard, raw, prompt
         except Exception as exc:  # noqa: BLE001
             error_message = str(exc)
-            prompt = f\"{fix_prompt}\\n\\nValidation Error: {error_message}\\n\\nInvalid Output:\\n{raw}\"
-    raise RuntimeError(error_message or \"LLM JSON validation failed\")
+            prompt = f"{fix_prompt}\n\nValidation Error: {error_message}\n\nInvalid Output:\n{raw}"
+    raise RuntimeError(error_message or "LLM JSON validation failed")
 
 
 def score_answer(session: Dict[str, Any], question: Dict[str, Any], answer_text: str) -> Dict[str, Any]:

@@ -46,8 +46,8 @@ def _call_and_validate(prompt: str, provider: str) -> Tuple[Dict[str, Any], str,
             return rubric.model_dump(), raw, prompt
         except Exception as exc:  # noqa: BLE001
             error_message = str(exc)
-            prompt = f\"{fix_prompt}\\n\\nValidation Error: {error_message}\\n\\nInvalid Output:\\n{raw}\"
-    raise RuntimeError(error_message or \"LLM JSON validation failed\")
+            prompt = f"{fix_prompt}\n\nValidation Error: {error_message}\n\nInvalid Output:\n{raw}"
+    raise RuntimeError(error_message or "LLM JSON validation failed")
 
 
 def generate_rubric(job_spec: str, cv_text: str, provider: str) -> LLMResult:
