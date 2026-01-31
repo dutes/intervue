@@ -47,6 +47,13 @@ def round_for_index(index: int) -> Tuple[Dict[str, Any], int]:
 def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], persona: str, question_id: str) -> str:
     rubric_json = json.dumps(session["rubric"], indent=2)
     style = persona_style(persona)
+    previous_questions = session.get("questions", [])
+    if previous_questions:
+        previous_text = "\n".join(
+            f"- {item['question_id']}: {item['text']}" for item in previous_questions if item.get("text")
+        )
+    else:
+        previous_text = "None"
     return (
         f"Job Spec:\n{session['job_spec']}\n\n"
         f"CV:\n{session['cv_text']}\n\n"
@@ -54,6 +61,7 @@ def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], p
         f"Round: {round_info['name']} - {round_info['goal']}\n"
         f"Persona: {persona} ({style})\n"
         f"Question ID: {question_id}\n\n"
+        f"Previously asked questions:\n{previous_text}\n\n"
         "Generate exactly one interview question."
     )
 

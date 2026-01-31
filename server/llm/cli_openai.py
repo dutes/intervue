@@ -38,6 +38,9 @@ Schema:
 Rules:
 - Make the question specific to job spec + CV + rubric
 - Use the persona style provided
+- Avoid repeating topics or phrasing from previously asked questions
+- Keep it natural and conversational, like a real interview
+- Ask one focused question (avoid multi-part checklists)
 - Do not include any extra keys
 """
 
