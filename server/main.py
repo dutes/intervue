@@ -12,7 +12,7 @@ from server.core import reports as report_core
 from server.core import rubric as rubric_core
 from server.core import scoring as scoring_core
 from server.core.state import SessionState, load_session_state
-from server.llm import cli_gemini, cli_openai, mock
+from server.llm import cli_openai
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -59,26 +59,17 @@ def _get_session(session_id: str) -> SessionState:
     return state
 
 
-def _verify_provider(provider: str) -> None:
-    if provider == "openai":
-        if not os.getenv("OPENAI_API_KEY"):
-            raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
-        cli_openai.test_connection()
-    elif provider == "gemini":
-        if not os.getenv("GEMINI_API_KEY"):
-            raise HTTPException(status_code=400, detail="GEMINI_API_KEY is not set")
-        cli_gemini.test_connection()
-    elif provider == "mock":
-        mock.test_connection()
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported provider")
+def _verify_provider() -> None:
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
+    cli_openai.test_connection()
 
 
 @app.post("/sessions/start")
 async def start_session(request: StartRequest) -> Dict[str, str]:
-    provider = request.provider.lower()
+    provider = "openai"
     try:
-        _verify_provider(provider)
+        _verify_provider()
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
