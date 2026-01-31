@@ -32,10 +32,27 @@ def choose_provider() -> str:
     return provider.strip().lower()
 
 
-def start_session(provider: str, job_spec: str, cv_text: str) -> str:
+def prompt_api_key(provider: str) -> str | None:
+    if provider not in {"openai", "gemini"}:
+        return None
+    key = typer.prompt(
+        f"Enter {provider} API key (leave blank to use server env)",
+        default="",
+        show_default=False,
+        hide_input=True,
+    )
+    return key.strip() or None
+
+
+def start_session(provider: str, job_spec: str, cv_text: str, api_key: str | None) -> str:
     response = requests.post(
         f"{API_URL}/sessions/start",
-        json={"job_spec": job_spec, "cv_text": cv_text, "provider": provider},
+        json={
+            "job_spec": job_spec,
+            "cv_text": cv_text,
+            "provider": provider,
+            "api_key": api_key,
+        },
         timeout=60,
     )
     if response.status_code != 200:
@@ -57,23 +74,31 @@ def main() -> None:
         raise typer.Exit(code=1) from exc
 
     provider = choose_provider()
+    api_key = prompt_api_key(provider)
     job_spec = read_multiline("Paste the job specification.")
     cv_text = read_multiline("Paste your CV/resume text.")
 
     while True:
         try:
-            session_id = start_session(provider, job_spec, cv_text)
+            session_id = start_session(provider, job_spec, cv_text, api_key)
             break
         except RuntimeError as exc:
             console.print(f"[red]LLM connectivity failed:[/red] {exc}")
+            if "API_KEY is not set" in str(exc) and provider in {"openai", "gemini"}:
+                console.print("[yellow]API key missing. Please enter it to continue.[/yellow]")
+                api_key = prompt_api_key(provider)
+                if api_key:
+                    continue
             action = typer.prompt("Retry / switch / mock / exit", default="retry").strip().lower()
             if action == "retry":
                 continue
             if action == "switch":
                 provider = choose_provider()
+                api_key = prompt_api_key(provider)
                 continue
             if action == "mock":
                 provider = "mock"
+                api_key = None
                 continue
             raise typer.Exit(code=1)
 

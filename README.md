@@ -12,7 +12,7 @@ pip install -r requirements.txt
 
 ## Environment Variables
 
-Choose one provider and set the API key:
+Choose one provider and set the API key (or enter it when the CLI prompts you):
 
 ```bash
 export OPENAI_API_KEY=your_key
