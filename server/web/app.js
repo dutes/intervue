@@ -47,7 +47,8 @@ const updateProgress = () => {
     step.classList.toggle("is-complete", isComplete);
     step.classList.toggle("is-active", isActive);
   });
-  const percent = Math.min(state.answeredCount / TOTAL_QUESTIONS, 1) * 100;
+  const totalSegments = Math.max(TOTAL_QUESTIONS - 1, 1);
+  const percent = Math.min(state.answeredCount / totalSegments, 1) * 100;
   elements.progressFill.style.width = `${percent}%`;
   elements.progressText.textContent = `${state.answeredCount} of ${TOTAL_QUESTIONS} answered`;
 };
