@@ -3,16 +3,20 @@ from __future__ import annotations
 import json
 from typing import Any, Dict
 
+from server.core.json_utils import parse_json_response
+from server.core.personas import persona_style
 from server.llm import cli_gemini, cli_openai, mock
 from server.llm.schemas import Rubric, Scorecard
 
 
-def build_scoring_prompt(session: Dict[str, Any], question: Dict[str, Any], answer_text: str) -> str:
+def build_scoring_prompt(session: Dict[str, Any], question: Dict[str, Any], answer_text: str, persona: str) -> str:
     rubric_json = json.dumps(session["rubric"], indent=2)
+    style = persona_style(persona)
     return (
         f"Rubric JSON:\n{rubric_json}\n\n"
         f"Question:\n{question['text']}\n\n"
         f"Answer:\n{answer_text}\n\n"
+        f"Persona: {persona} ({style})\n\n"
         "Score the answer against the rubric."
     )
 
@@ -44,7 +48,7 @@ def _call_and_validate(prompt: str, provider: str) -> tuple[Scorecard, str, str]
     for _ in range(attempts):
         raw = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1)
         try:
-            parsed = json.loads(raw)
+            parsed = parse_json_response(raw)
             scorecard = Scorecard.model_validate(parsed)
             return scorecard, raw, prompt
         except Exception as exc:  # noqa: BLE001
@@ -53,7 +57,7 @@ def _call_and_validate(prompt: str, provider: str) -> tuple[Scorecard, str, str]
     raise RuntimeError(error_message or "LLM JSON validation failed")
 
 
-def score_answer(session: Dict[str, Any], question: Dict[str, Any], answer_text: str) -> Dict[str, Any]:
+def score_answer(session: Dict[str, Any], question: Dict[str, Any], answer_text: str, persona: str) -> Dict[str, Any]:
     rubric = Rubric.model_validate(session["rubric"])
     provider = session["provider"]
     prompt_text = ""
@@ -66,7 +70,7 @@ def score_answer(session: Dict[str, Any], question: Dict[str, Any], answer_text:
     else:
         prompt_text = (
             f"{cli_openai.SCORE_PROMPT if provider == 'openai' else cli_gemini.SCORE_PROMPT}\n\n"
-            f"{build_scoring_prompt(session, question, answer_text)}"
+            f"{build_scoring_prompt(session, question, answer_text, persona)}"
         )
         scorecard, raw_response, prompt_text = _call_and_validate(prompt_text, provider)
 
