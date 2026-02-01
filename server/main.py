@@ -117,7 +117,7 @@ def _verify_provider(provider: str, api_key: Optional[str]) -> None:
     raise HTTPException(status_code=400, detail="Unsupported provider")
 
 
-@app.post("/sessions/start")
+@app.post("/sessions/start", response_model=StartResponse)
 async def start_session(request: StartRequest) -> StartResponse:
     provider = _normalize_provider(request.provider)
     try:
