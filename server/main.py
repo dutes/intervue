@@ -45,6 +45,11 @@ class AnswerRequest(BaseModel):
     answer_text: str = Field(min_length=1)
 
 
+class StartResponse(BaseModel):
+    session_id: str
+    total_questions: int
+
+
 @app.get("/health")
 async def health() -> Dict[str, str]:
     return {"status": "ok"}
@@ -113,7 +118,7 @@ def _verify_provider(provider: str, api_key: Optional[str]) -> None:
 
 
 @app.post("/sessions/start")
-async def start_session(request: StartRequest) -> Dict[str, str]:
+async def start_session(request: StartRequest) -> StartResponse:
     provider = _normalize_provider(request.provider)
     try:
         _verify_provider(provider, request.api_key)
@@ -138,10 +143,10 @@ async def start_session(request: StartRequest) -> Dict[str, str]:
     )
     session.save()
     SESSIONS[session.session_id] = session
-    return {
-        "session_id": session.session_id,
-        "total_questions": question_core.total_questions(request.start_round),
-    }
+    return StartResponse(
+        session_id=session.session_id,
+        total_questions=question_core.total_questions(request.start_round),
+    )
 
 
 @app.post("/sessions/{session_id}/next_question")
