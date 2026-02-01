@@ -142,6 +142,18 @@ input:focus {
   align-items: center;
 }
 
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.voice-status {
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
 button {
   border: none;
   border-radius: 12px;
@@ -171,6 +183,11 @@ button:disabled {
 .secondary {
   background: #1e293b;
   color: #e2e8f0;
+}
+
+.voice-active {
+  background: #ef4444;
+  color: #ffffff;
 }
 
 .question-meta {
