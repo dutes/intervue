@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
@@ -236,4 +236,49 @@ async def end_session(session_id: str) -> Dict[str, object]:
         "weaknesses": report_payload["weaknesses"],
         "persona_feedback": report_payload["persona_feedback"],
     }
+
     return {"summary": summary, "report_paths": report_paths}
+
+
+# --- New Endpoints ---
+
+from fastapi import UploadFile, File
+from server.core.files import parse_file
+from server.core import storage as storage_core
+
+class FileUploadResponse(BaseModel):
+    filename: str
+    text_preview: str
+    text_length: int
+
+@app.post("/upload", response_model=FileUploadResponse)
+async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
+    content = await file.read()
+    try:
+        text = parse_file(content, file.filename or "unknown")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse file: {str(e)}")
+    
+    return FileUploadResponse(
+        filename=file.filename or "unknown",
+        text_preview=text[:200] + "..." if len(text) > 200 else text,
+        text_length=len(text)
+    )
+
+@app.get("/sessions")
+async def list_sessions() -> List[Dict[str, Any]]:
+    return storage_core.list_sessions()
+
+@app.get("/sessions/{session_id}")
+async def get_session(session_id: str) -> Dict[str, Any]:
+    try:
+        session = _get_session(session_id)
+        # We return the raw dict, but we could filter or separate rubric
+        return session.to_dict()
+    except Exception:
+         # Fallback if _get_session expects it to be in memory or loaded
+         try:
+            return storage_core.load_session(session_id)
+         except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Session not found")
+

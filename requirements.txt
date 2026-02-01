@@ -6,3 +6,6 @@ typer
 rich
 matplotlib
 python-dotenv
+pypdf
+python-docx
+python-multipart
