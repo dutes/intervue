@@ -8,11 +8,12 @@ from server.core.storage import save_session
 
 
 class SessionState:
-    def __init__(self, job_spec: str, cv_text: str, provider: str) -> None:
+    def __init__(self, job_spec: str, cv_text: str, provider: str, start_round: int = 1) -> None:
         self.session_id = str(uuid.uuid4())
         self.job_spec = job_spec
         self.cv_text = cv_text
         self.provider = provider
+        self.start_round = start_round
         self.created_at = time.time()
         self.rubric: Optional[Dict[str, Any]] = None
         self.questions: List[Dict[str, Any]] = []
@@ -27,6 +28,7 @@ class SessionState:
             "job_spec": self.job_spec,
             "cv_text": self.cv_text,
             "provider": self.provider,
+            "start_round": self.start_round,
             "created_at": self.created_at,
             "rubric": self.rubric,
             "questions": self.questions,
