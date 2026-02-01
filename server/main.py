@@ -320,7 +320,7 @@ async def get_session(session_id: str) -> Dict[str, Any]:
          # Fallback if _get_session expects it to be in memory or loaded
          try:
             return storage_core.load_session(session_id)
-        except FileNotFoundError:
+         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Session not found")
 
 
