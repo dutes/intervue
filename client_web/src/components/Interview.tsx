@@ -223,10 +223,6 @@ export default function Interview() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-12 pr-4 py-4 text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all resize-none shadow-xl"
                 />
                 <div className="absolute bottom-4 right-4 flex gap-3">
-                    {/* Voice button placeholder */}
-                    <button type="button" className="p-2 text-slate-500 hover:text-slate-300 transition-colors" title="Voice Input (Coming Soon)">
-                        <Mic className="w-5 h-5" />
-                    </button>
                     <button
                         type="submit"
                         disabled={!answer.trim() || submitting || loading}
