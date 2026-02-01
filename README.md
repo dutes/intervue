@@ -10,6 +10,8 @@ The easiest way to run Intervue is using **Docker**. This bundles everything int
 
 *   **Download & Install Docker Desktop**: [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/)
     *   *Note: Ensure Docker Desktop is running before proceeding.*
+*   **Get an AI API Key**: You will need an API key from either [OpenAI](https://platform.openai.com/) (for ChatGPT) or [Google](https://aistudio.google.com/) (for Gemini).
+    *   *You don't need to install anything for this, just have the key ready to paste when you start the interview.*
 
 ### 2. Get the Code
 
