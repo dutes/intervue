@@ -59,6 +59,10 @@
             <span>Your answer</span>
             <textarea id="answerText" rows="5" required></textarea>
           </label>
+          <div class="voice-controls">
+            <button class="secondary" id="voiceToggle" type="button">Start voice input</button>
+            <span class="voice-status" id="voiceStatus">Voice input idle.</span>
+          </div>
           <div class="actions">
             <button class="primary" id="submitAnswer" type="submit">Submit answer</button>
             <div class="submit-status" id="submitStatus" role="status" aria-live="polite" hidden>

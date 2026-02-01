@@ -5,6 +5,7 @@ const state = {
   provider: null,
   apiKey: null,
   pendingStart: false,
+  isListening: false,
 };
 
 const elements = {
@@ -18,6 +19,8 @@ const elements = {
   questionText: document.getElementById("questionText"),
   answerForm: document.getElementById("answerForm"),
   answerText: document.getElementById("answerText"),
+  voiceToggle: document.getElementById("voiceToggle"),
+  voiceStatus: document.getElementById("voiceStatus"),
   submitAnswer: document.getElementById("submitAnswer"),
   submitStatus: document.getElementById("submitStatus"),
   progressFill: document.getElementById("progressFill"),
@@ -37,6 +40,7 @@ const elements = {
 };
 
 const TOTAL_QUESTIONS = 5;
+let speechRecognition = null;
 
 const setStatus = (status, message = "") => {
   elements.sessionStatus.textContent = status;
@@ -69,6 +73,7 @@ const setQuestion = (question) => {
     elements.personaPill.textContent = "Persona —";
     state.currentQuestionId = null;
     elements.answerForm.hidden = true;
+    stopVoiceInput();
     setSubmitting(false);
     return;
   }
@@ -77,6 +82,7 @@ const setQuestion = (question) => {
   elements.personaPill.textContent = `Persona ${question.persona}`;
   state.currentQuestionId = question.question_id;
   elements.answerForm.hidden = false;
+  setVoiceStatus("Voice input idle.");
   setSubmitting(false);
 };
 
@@ -152,6 +158,79 @@ const showApiKeyDialog = () => {
   }
   elements.apiKeyInput.value = state.apiKey ?? "";
   elements.apiKeyDialog.showModal();
+};
+
+const setVoiceStatus = (message) => {
+  elements.voiceStatus.textContent = message;
+};
+
+const updateVoiceToggle = () => {
+  elements.voiceToggle.textContent = state.isListening ? "Stop voice input" : "Start voice input";
+  elements.voiceToggle.classList.toggle("voice-active", state.isListening);
+};
+
+const appendTranscript = (transcript) => {
+  if (!transcript) {
+    return;
+  }
+  const existing = elements.answerText.value;
+  const spacer = existing && !existing.endsWith(" ") ? " " : "";
+  elements.answerText.value = `${existing}${spacer}${transcript.trim()}`;
+};
+
+const stopVoiceInput = () => {
+  if (speechRecognition && state.isListening) {
+    speechRecognition.stop();
+  }
+  state.isListening = false;
+  updateVoiceToggle();
+};
+
+const initSpeechRecognition = () => {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    elements.voiceToggle.disabled = true;
+    setVoiceStatus("Voice input is not supported in this browser.");
+    return;
+  }
+  speechRecognition = new SpeechRecognition();
+  speechRecognition.lang = "en-US";
+  speechRecognition.continuous = true;
+  speechRecognition.interimResults = true;
+
+  speechRecognition.addEventListener("result", (event) => {
+    let interimTranscript = "";
+    let finalTranscript = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const result = event.results[i];
+      const transcript = result[0].transcript;
+      if (result.isFinal) {
+        finalTranscript += transcript;
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+    if (finalTranscript) {
+      appendTranscript(finalTranscript);
+    }
+    if (state.isListening) {
+      const interimSuffix = interimTranscript ? ` ${interimTranscript.trim()}` : "";
+      setVoiceStatus(`Listening...${interimSuffix}`);
+    }
+  });
+
+  speechRecognition.addEventListener("error", (event) => {
+    setVoiceStatus(`Voice input error: ${event.error}`);
+    stopVoiceInput();
+  });
+
+  speechRecognition.addEventListener("end", () => {
+    if (state.isListening) {
+      state.isListening = false;
+      updateVoiceToggle();
+      setVoiceStatus("Voice input idle.");
+    }
+  });
 };
 
 const updateApiKeyHint = () => {
@@ -247,6 +326,7 @@ elements.answerForm.addEventListener("submit", async (event) => {
     setStatus("Error", "No active question to answer.");
     return;
   }
+  stopVoiceInput();
   setSubmitting(true);
   setStatus("Scoring", "Submitting your answer for evaluation...");
   try {
@@ -293,6 +373,29 @@ elements.apiKeyForm.addEventListener("submit", (event) => {
   }
 });
 
+elements.voiceToggle.addEventListener("click", () => {
+  if (!speechRecognition) {
+    setVoiceStatus("Voice input is not supported in this browser.");
+    return;
+  }
+  if (state.isListening) {
+    stopVoiceInput();
+    setVoiceStatus("Voice input idle.");
+    return;
+  }
+  try {
+    speechRecognition.start();
+    state.isListening = true;
+    updateVoiceToggle();
+    setVoiceStatus("Listening...");
+  } catch (error) {
+    setVoiceStatus("Unable to start voice input.");
+    state.isListening = false;
+    updateVoiceToggle();
+  }
+});
+
 setQuestion(null);
 initProgress();
 updateApiKeyHint();
+initSpeechRecognition();
