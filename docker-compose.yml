@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # If you set this here, it overrides the default. 
+      # You can also use a .env file in the same directory.
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=gpt-5.2
+    volumes:
+      # Persist data (sessions, reports)
+      - ./data:/app/data

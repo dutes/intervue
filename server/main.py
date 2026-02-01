@@ -25,19 +25,50 @@ load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 
 BASE_DIR = Path(__file__).resolve().parent
-WEB_DIR = BASE_DIR / "web"
+# Check if we are running in Docker (./web sibling to server package in /app) or local (../client_web/dist)
+# In Dockerfile: COPY --from=frontend /app/client_web/dist ./web  -> /app/web. 
+# main.py is in /app/server/main.py. So BASE_DIR is /app/server. 
+# We want /app/web.
+if (BASE_DIR.parent / "web").exists():
+    WEB_DIR = BASE_DIR.parent / "web"
+else:
+    # fallback for local dev if dist exists, otherwise use src? 
+    # Actually for local dev we usually use Vite dev server on 5173.
+    # But if we wanted to serve built files locally:
+    WEB_DIR = BASE_DIR.parent / "client_web" / "dist"
+
+# If WEB_DIR doesn't exist (e.g. local dev without build), we might crash on mount.
+# But let's assume for this step we are focusing on Docker support.
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev convenience
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+# Serves /assets from the build
+if (WEB_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
+
+@app.get("/health")
+async def health() -> Dict[str, str]:
+    return {"status": "ok"}
+
+# API routes are defined below... specific routes take precedence.
+
+# Catch-all for SPA: Serve index.html for any path that isn't an API call or file
+# We place this at the END of the file (conceptually) or use a clever route.
+# However, FastAPI matches in order. 
+# We need to make sure API routes come first (which they do).
+# But we need this catch-all to be *after* the API routes. 
+# Since we are editing the top of the file, we can't easily put it at the bottom without moving everything.
+# Alternative: A route that matches /{full_path:path} but we check if it starts with /api or /sessions.
+# EASIER: Just define the specific routes first (which they are), then add the catch-all at the bottom.
+
 
 SESSIONS: Dict[str, SessionState] = {}
 
@@ -289,6 +320,21 @@ async def get_session(session_id: str) -> Dict[str, Any]:
          # Fallback if _get_session expects it to be in memory or loaded
          try:
             return storage_core.load_session(session_id)
-         except FileNotFoundError:
+        except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Session not found")
+
+
+# SPA Catch-all
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    # If the path is a file in WEB_DIR, serve it? (e.g. vite.svg)
+    file_path = WEB_DIR / full_path
+    if file_path.exists() and file_path.is_file():
+        return HTMLResponse(file_path.read_text(encoding="utf-8")) # Naive media type, but OK for text files
+    
+    # Otherwise return index.html for client-side routing
+    if (WEB_DIR / "index.html").exists():
+        return HTMLResponse((WEB_DIR / "index.html").read_text(encoding="utf-8"))
+    
+    return {"error": "Frontend not found. Did you run npm run build?"}
 
