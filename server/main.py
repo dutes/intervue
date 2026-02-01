@@ -37,11 +37,17 @@ class StartRequest(BaseModel):
     cv_text: str = Field(min_length=10)
     provider: str
     api_key: Optional[str] = None
+    start_round: int = Field(default=1, ge=1)
 
 
 class AnswerRequest(BaseModel):
     question_id: str
     answer_text: str = Field(min_length=1)
+
+
+class StartResponse(BaseModel):
+    session_id: str
+    total_questions: int
 
 
 @app.get("/health")
@@ -58,10 +64,16 @@ def _get_session(session_id: str) -> SessionState:
     if session_id in SESSIONS:
         return SESSIONS[session_id]
     payload = load_session_state(session_id)
-    state = SessionState(payload["job_spec"], payload["cv_text"], payload["provider"])
+    state = SessionState(
+        payload["job_spec"],
+        payload["cv_text"],
+        payload["provider"],
+        payload.get("start_round", 1),
+    )
     state.session_id = payload["session_id"]
     state.created_at = payload["created_at"]
     state.rubric = payload.get("rubric")
+    state.start_round = payload.get("start_round", 1)
     state.questions = payload.get("questions", [])
     state.answers = payload.get("answers", [])
     state.scores = payload.get("scores", [])
@@ -106,14 +118,17 @@ def _verify_provider(provider: str, api_key: Optional[str]) -> None:
 
 
 @app.post("/sessions/start")
-async def start_session(request: StartRequest) -> Dict[str, str]:
+async def start_session(request: StartRequest) -> StartResponse:
     provider = _normalize_provider(request.provider)
     try:
         _verify_provider(provider, request.api_key)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    session = SessionState(request.job_spec, request.cv_text, provider)
+    if request.start_round > len(question_core.ROUNDS):
+        raise HTTPException(status_code=400, detail="Unsupported round selection")
+
+    session = SessionState(request.job_spec, request.cv_text, provider, request.start_round)
 
     rubric_result = rubric_core.generate_rubric(request.job_spec, request.cv_text, provider)
     session.rubric = rubric_result.parsed
@@ -128,7 +143,10 @@ async def start_session(request: StartRequest) -> Dict[str, str]:
     )
     session.save()
     SESSIONS[session.session_id] = session
-    return {"session_id": session.session_id}
+    return StartResponse(
+        session_id=session.session_id,
+        total_questions=question_core.total_questions(request.start_round),
+    )
 
 
 @app.post("/sessions/{session_id}/next_question")
@@ -138,7 +156,7 @@ async def next_question(session_id: str) -> Dict[str, str]:
         raise HTTPException(status_code=400, detail="Session is not active")
 
     index = len(session.questions)
-    if index >= question_core.total_questions():
+    if index >= question_core.total_questions(session.start_round):
         raise HTTPException(status_code=400, detail="Interview already complete")
 
     question = question_core.generate_question(session.to_dict(), index)

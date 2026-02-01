@@ -32,17 +32,24 @@ DEFAULT_PERSONA = "neutral"
 MAX_TOTAL_QUESTIONS = 5
 
 
-def total_questions() -> int:
-    return min(MAX_TOTAL_QUESTIONS, sum(r["count"] for r in ROUNDS))
+def _round_sequence(start_round: int) -> List[Dict[str, Any]]:
+    if 1 <= start_round <= len(ROUNDS):
+        return ROUNDS[start_round - 1 :]
+    return ROUNDS
 
 
-def round_for_index(index: int) -> Tuple[Dict[str, Any], int]:
+def total_questions(start_round: int = 1) -> int:
+    return min(MAX_TOTAL_QUESTIONS, sum(r["count"] for r in _round_sequence(start_round)))
+
+
+def round_for_index(index: int, start_round: int = 1) -> Tuple[Dict[str, Any], int]:
     running = 0
-    for round_index, round_info in enumerate(ROUNDS, start=1):
+    rounds = _round_sequence(start_round)
+    for round_index, round_info in enumerate(rounds, start=start_round):
         running += round_info["count"]
         if index < running:
             return round_info, round_index
-    return ROUNDS[-1], len(ROUNDS)
+    return rounds[-1], start_round + len(rounds) - 1
 
 
 def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], persona: str, question_id: str) -> str:
@@ -114,7 +121,8 @@ def _call_and_validate(prompt: str, provider: str) -> Dict[str, Any]:
 
 
 def generate_question(session: Dict[str, Any], index: int) -> Dict[str, Any]:
-    round_info, _round_num = round_for_index(index)
+    start_round = session.get("start_round", 1)
+    round_info, _round_num = round_for_index(index, start_round)
     persona = DEFAULT_PERSONA
     question_id = f"q{index + 1}"
 
