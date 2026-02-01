@@ -158,6 +158,9 @@ const showApiKeyDialog = () => {
   }
   elements.apiKeyInput.value = state.apiKey ?? "";
   elements.apiKeyDialog.showModal();
+  window.requestAnimationFrame(() => {
+    elements.apiKeyInput.focus();
+  });
 };
 
 const setVoiceStatus = (message) => {
@@ -399,3 +402,4 @@ setQuestion(null);
 initProgress();
 updateApiKeyHint();
 initSpeechRecognition();
+showApiKeyDialog();
