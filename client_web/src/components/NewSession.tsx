@@ -142,8 +142,8 @@ export default function NewSession() {
                                 type="button"
                                 onClick={() => setStartRound(option.value)}
                                 className={`text-left p-4 rounded-xl border transition-all ${startRound === option.value
-                                        ? "bg-indigo-500/10 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/10"
-                                        : "bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700 hover:bg-slate-900"
+                                    ? "bg-indigo-500/10 border-indigo-500/50 text-white shadow-lg shadow-indigo-500/10"
+                                    : "bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700 hover:bg-slate-900"
                                     }`}
                             >
                                 <div className="font-medium mb-1">{option.label}</div>
@@ -163,7 +163,7 @@ export default function NewSession() {
                                 onChange={(e) => setProvider(e.target.value)}
                                 className="w-full appearance-none bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-indigo-500 outline-none"
                             >
-                                <option value="openai">OpenAI (GPT-4)</option>
+                                <option value="openai">OpenAI (GPT-5.2)</option>
                                 <option value="gemini">Google (Gemini Pro)</option>
                                 <option value="mock">Mock (Testing)</option>
                             </select>
