@@ -44,12 +44,15 @@ export default function Interview() {
             if (data.status === 'completed') {
                 setFinished(true); // ideally fetch summary
                 // For now, simpler to just show "Complete" state or redirect
+                setLoading(false);
             } else {
-                fetchNextQuestion();
+                // Determine if we need to fetch the next question
+                // If it's a new session, yes. 
+                // In a real app we might check if there's an unanswered question or just fetch next.
+                await fetchNextQuestion();
             }
         } catch (err: any) {
             setError(err.message);
-        } finally {
             setLoading(false);
         }
     };
