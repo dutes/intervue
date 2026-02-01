@@ -6,6 +6,7 @@ const state = {
   apiKey: null,
   pendingStart: false,
   isListening: false,
+  totalQuestions: 5,
 };
 
 const elements = {
@@ -14,6 +15,7 @@ const elements = {
   startForm: document.getElementById("startForm"),
   jobSpec: document.getElementById("jobSpec"),
   cvText: document.getElementById("cvText"),
+  startRound: document.getElementById("startRound"),
   roundPill: document.getElementById("roundPill"),
   personaPill: document.getElementById("personaPill"),
   questionText: document.getElementById("questionText"),
@@ -39,7 +41,6 @@ const elements = {
   apiKeyError: document.getElementById("apiKeyError"),
 };
 
-const TOTAL_QUESTIONS = 5;
 let speechRecognition = null;
 
 const setStatus = (status, message = "") => {
@@ -60,10 +61,10 @@ const updateProgress = () => {
     step.classList.toggle("is-complete", isComplete);
     step.classList.toggle("is-active", isActive);
   });
-  const totalSegments = Math.max(TOTAL_QUESTIONS - 1, 1);
+  const totalSegments = Math.max(state.totalQuestions - 1, 1);
   const percent = Math.min(state.answeredCount / totalSegments, 1) * 100;
   elements.progressFill.style.width = `${percent}%`;
-  elements.progressText.textContent = `${state.answeredCount} of ${TOTAL_QUESTIONS} answered`;
+  elements.progressText.textContent = `${state.answeredCount} of ${state.totalQuestions} answered`;
 };
 
 const setQuestion = (question) => {
@@ -271,7 +272,7 @@ const fetchNextQuestion = async () => {
 
 const initProgress = () => {
   elements.progressSteps.innerHTML = "";
-  for (let i = 0; i < TOTAL_QUESTIONS; i += 1) {
+  for (let i = 0; i < state.totalQuestions; i += 1) {
     const step = document.createElement("span");
     step.className = "progress-step";
     elements.progressSteps.appendChild(step);
@@ -305,17 +306,21 @@ elements.startForm.addEventListener("submit", async (event) => {
   state.answeredCount = 0;
   updateProgress();
   try {
+    const startRound = Number.parseInt(elements.startRound.value, 10) || 1;
     const payload = {
       job_spec: elements.jobSpec.value.trim(),
       cv_text: elements.cvText.value.trim(),
       provider: state.provider,
       api_key: state.apiKey,
+      start_round: startRound,
     };
     const data = await apiRequest("/sessions/start", {
       method: "POST",
       body: JSON.stringify(payload),
     });
     state.sessionId = data.session_id;
+    state.totalQuestions = data.total_questions ?? state.totalQuestions;
+    initProgress();
     setStatus("Active", `Session ID: ${state.sessionId}`);
     await fetchNextQuestion();
   } catch (error) {
