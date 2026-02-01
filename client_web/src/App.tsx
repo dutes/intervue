@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { Terminal, LayoutDashboard, PlusCircle } from "lucide-react";
 import Dashboard from "./components/Dashboard";
 import NewSession from "./components/NewSession";
-// import Interview from "./components/Interview";
+import Interview from "./components/Interview";
 
 function App() {
   return (
@@ -32,7 +32,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/new" element={<NewSession />} />
-            {/* <Route path="/session/:id" element={<Interview />} /> */}
+            <Route path="/session/:id" element={<Interview />} />
           </Routes>
         </main>
       </div>
