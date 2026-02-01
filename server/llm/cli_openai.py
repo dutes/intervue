@@ -6,7 +6,7 @@ import subprocess
 from typing import Any, Dict
 
 OPENAI_URL = "https://api.openai.com/v1/responses"
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")
 
 RUBRIC_PROMPT = """
 You are generating a hiring rubric from a job spec and CV. Return STRICT JSON only.
