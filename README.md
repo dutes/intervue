@@ -1,6 +1,6 @@
 # Intervue
 
-**Intervue** is an AI-powered interview practice too designed to help you prepare for real-world job interviews. It simulates different interview stages (Screening, Deep Dive, Challenge) and provides instant feedback on your answers.
+**Intervue** is an AI-powered interview practice tool designed to help you prepare for real-world job interviews. It simulates different interview stages (Screening, Deep Dive, Challenge) and provides instant feedback on your answers.
 
 ## 🚀 Quick Start Guide (For Everyone)
 
