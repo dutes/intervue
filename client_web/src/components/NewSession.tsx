@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload, FileText, Briefcase, Loader2, Play, Target, AlertCircle } from "lucide-react";
+import { Upload, FileText, Briefcase, Play, Target, AlertCircle } from "lucide-react";
 
 const ROUND_OPTIONS = [
     { value: 1, label: "Round 1: Screening", description: "Establish baseline fit and core experience." },
