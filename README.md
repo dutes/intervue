@@ -2,8 +2,7 @@
 
 **Intervue** is an AI-powered interview practice tool designed to help you prepare for real-world job interviews. It simulates different interview stages (Screening, Deep Dive, Challenge) and provides instant feedback on your answers.
 
-## 🚀 Quick Start Guide (For Everyone)
-
+## 🚀 Quick Start Guide 
 The easiest way to run Intervue is using **Docker**. This bundles everything into a single package so you don't need to install Python or Node.js manually.
 
 ### 1. Prerequisites
