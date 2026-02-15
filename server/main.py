@@ -275,6 +275,7 @@ async def end_session(session_id: str) -> Dict[str, object]:
         "overall_score": report_payload["overall_score"],
         "strengths": report_payload["strengths"],
         "weaknesses": report_payload["weaknesses"],
+        "persona_averages": report_payload["persona_averages"],
         "persona_feedback": report_payload["persona_feedback"],
     }
 

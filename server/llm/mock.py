@@ -36,28 +36,14 @@ def generate_rubric() -> Rubric:
 
 def generate_question(session_id: str, round_name: str, persona: str, index: int) -> Dict[str, str]:
     templates = {
-        "screening": [
+        "interview": [
             "Give me a quick overview of a recent project you owned that maps to this role.",
-            "What part of your background best prepares you for this position, and why?",
-            "Walk me through a time you had to align stakeholders on a requirement.",
-            "Tell me about a recent accomplishment you are proud of and your role in it.",
-        ],
-        "deep_dive": [
             "Describe a time you made a tough technical tradeoff and how you decided.",
-            "Tell me about a complex problem you solved and the steps you took.",
-            "Share an example where you improved a process or system and its impact.",
-            "What is a technical decision you would change if you could revisit it?",
-            "How have you handled incomplete requirements on a high-stakes project?",
-            "Describe a situation where you had to mentor or unblock a teammate.",
-        ],
-        "challenge": [
             "Tell me about a time a project went off track and how you responded.",
-            "Describe a difficult piece of feedback you received and what you did next.",
-            "When you disagree with a decision, how do you handle it? Share a real example.",
-            "What is a risk you took at work that did not pay off, and what you learned?",
+            "Share an example where you improved a process or system and its impact.",
         ],
     }
-    round_templates = templates.get(round_name, templates["screening"])
+    round_templates = templates.get(round_name, templates["interview"])
     prompt = round_templates[index % len(round_templates)]
     return {
         "question_id": f"q{index+1}",
