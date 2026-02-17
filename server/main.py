@@ -61,13 +61,15 @@ async def startup_event():
     except Exception as e:
         print(f"Migration failed: {e}")
 
+# Ensure directories exist before mounting
+storage_core.ensure_dirs()
+
 # Serves /assets from the build
 if (WEB_DIR / "assets").exists():
     app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
 
 # Serve reports (charts)
-if storage_core.REPORTS_DIR.exists():
-    app.mount("/reports", StaticFiles(directory=storage_core.REPORTS_DIR), name="reports")
+app.mount("/reports", StaticFiles(directory=storage_core.REPORTS_DIR), name="reports")
 
 @app.get("/health")
 async def health() -> Dict[str, str]:
