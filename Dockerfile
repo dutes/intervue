@@ -1,17 +1,4 @@
-# Stage 1: Build the React Frontend
-FROM node:20-alpine AS frontend
-
-WORKDIR /app/client_web
-
-# Install dependencies (cache based on package.json)
-COPY client_web/package.json client_web/package-lock.json ./
-RUN npm ci
-
-# Copy source and build
-COPY client_web/ .
-RUN npm run build
-
-# Stage 2: Setup the Python Backend
+# Stage 1: Setup the Python Backend
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -26,9 +13,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend code
 COPY server/ ./server/
 
-# Copy built frontend assets from Stage 1 to where the backend expects them
-# We'll put them in /app/web, and update main.py to look there
-COPY --from=frontend /app/client_web/dist ./web
+# Copy built frontend assets from local machine
+# ensuring we use the successful local build
+COPY client_web/dist ./web
+RUN ls -R /app/web
 
 # Expose the API port
 EXPOSE 8000
