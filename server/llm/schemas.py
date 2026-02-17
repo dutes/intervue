@@ -70,3 +70,21 @@ class ReportSummary(BaseModel):
     strengths: List[str]
     weaknesses: List[str]
     persona_feedback: List[PersonaFeedback]
+
+
+class Persona(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    role: str
+    tone: str
+    key_concerns: List[str]
+
+
+class CVAnalysis(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str
+    strengths: List[str]
+    weaknesses: List[str]
+    missing_info: List[str]

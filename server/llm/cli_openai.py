@@ -71,6 +71,37 @@ Your previous output was invalid JSON. Fix it and return ONLY valid JSON that ma
 """
 
 
+PERSONA_PROMPT = """
+You are an expert hiring manager. Generate a persona for the interviewer based on the job spec. Return STRICT JSON only.
+Schema:
+{
+  "name": "string",
+  "role": "string",
+  "tone": "string",
+  "key_concerns": ["string"]
+}
+Rules:
+- The persona should be appropriate for the role and company culture implied by the job spec.
+- Key concerns should be specific aspects the hiring manager would be worried about given the job spec.
+"""
+
+
+CV_ANALYSIS_PROMPT = """
+You are the hiring manager defined by the persona. Analyze the candidate's CV against the job spec. Return STRICT JSON only.
+Schema:
+{
+  "summary": "string",
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "missing_info": ["string"]
+}
+Rules:
+- Be critical and realistic.
+- Identify specific gaps or red flags in the CV relative to the job requirements.
+- Highlight areas that need probing during the interview.
+"""
+
+
 def _run_curl(payload: Dict[str, Any]) -> str:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
