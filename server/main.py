@@ -61,15 +61,33 @@ async def startup_event():
     except Exception as e:
         print(f"Migration failed: {e}")
 
+# Debug: Log paths
+print(f"DEBUG: BASE_DIR={BASE_DIR}")
+print(f"DEBUG: WEB_DIR={WEB_DIR} (Exists: {WEB_DIR.exists()})")
+
 # Ensure directories exist before mounting
-storage_core.ensure_dirs()
+try:
+    storage_core.ensure_dirs()
+    print(f"DEBUG: Created/Ensured data directories at {storage_core.DATA_DIR}")
+except Exception as e:
+    print(f"ERROR: Failed to ensure directories: {e}")
 
 # Serves /assets from the build
 if (WEB_DIR / "assets").exists():
     app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
+    print("DEBUG: Mounted /assets")
+else:
+    print(f"WARNING: Assets directory not found at {WEB_DIR / 'assets'}")
 
 # Serve reports (charts)
-app.mount("/reports", StaticFiles(directory=storage_core.REPORTS_DIR), name="reports")
+try:
+    if storage_core.REPORTS_DIR.exists():
+        app.mount("/reports", StaticFiles(directory=storage_core.REPORTS_DIR), name="reports")
+        print(f"DEBUG: Mounted /reports from {storage_core.REPORTS_DIR}")
+    else:
+        print(f"WARNING: Reports directory not found at {storage_core.REPORTS_DIR}")
+except Exception as e:
+    print(f"ERROR: Failed to mount /reports: {e}")
 
 @app.get("/health")
 async def health() -> Dict[str, str]:
