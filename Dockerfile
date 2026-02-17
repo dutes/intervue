@@ -9,19 +9,15 @@ RUN npm ci
 
 # Copy source and build
 COPY client_web/ .
-RUN ls -R .
-RUN cat index.html
-RUN ls -la src/ || echo "src/ not found"
 RUN npm run build
-RUN ls -R dist/ || echo "dist/ not found"
 
 # Stage 2: Setup the Python Backend
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies if needed (e.g. for some python packages)
-# RUN apt-get update && apt-get install -y --no-install-recommends ...
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
