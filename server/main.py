@@ -14,6 +14,7 @@ from server.core import questions as question_core
 from server.core import reports as report_core
 from server.core import rubric as rubric_core
 from server.core import scoring as scoring_core
+from server.core import analysis as analysis_core
 from server.core.state import SessionState, load_session_state
 from server.llm import cli_gemini, cli_openai
 
@@ -114,6 +115,8 @@ def _get_session(session_id: str) -> SessionState:
     state.session_id = payload["session_id"]
     state.created_at = payload["created_at"]
     state.rubric = payload.get("rubric")
+    state.persona = payload.get("persona")
+    state.cv_analysis = payload.get("cv_analysis")
     state.start_round = payload.get("start_round", 1)
     state.questions = payload.get("questions", [])
     state.answers = payload.get("answers", [])
@@ -182,6 +185,37 @@ async def start_session(request: StartRequest) -> StartResponse:
             "timestamp": time.time(),
         }
     )
+
+    # 1. Generate Persona
+    try:
+        persona = analysis_core.generate_persona(request.job_spec, provider)
+        session.persona = persona
+        session.logs.append(
+            {
+                "type": "persona",
+                "parsed": persona,
+                "timestamp": time.time(),
+            }
+        )
+    except Exception as e:
+        print(f"Error generating persona: {e}")
+        # Proceed without persona, falling back to default behavior
+
+    # 2. Analyze CV (requires persona)
+    if session.persona:
+        try:
+            cv_analysis = analysis_core.analyze_cv(request.cv_text, request.job_spec, session.persona, provider)
+            session.cv_analysis = cv_analysis
+            session.logs.append(
+                {
+                    "type": "cv_analysis",
+                    "parsed": cv_analysis,
+                    "timestamp": time.time(),
+                }
+            )
+        except Exception as e:
+            print(f"Error analyzing CV: {e}")
+
     session.save()
     SESSIONS[session.session_id] = session
     return StartResponse(

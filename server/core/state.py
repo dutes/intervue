@@ -16,6 +16,8 @@ class SessionState:
         self.start_round = start_round
         self.created_at = time.time()
         self.rubric: Optional[Dict[str, Any]] = None
+        self.persona: Optional[Dict[str, Any]] = None
+        self.cv_analysis: Optional[Dict[str, Any]] = None
         self.questions: List[Dict[str, Any]] = []
         self.answers: List[Dict[str, Any]] = []
         self.scores: List[Dict[str, Any]] = []
@@ -31,6 +33,8 @@ class SessionState:
             "start_round": self.start_round,
             "created_at": self.created_at,
             "rubric": self.rubric,
+            "persona": self.persona,
+            "cv_analysis": self.cv_analysis,
             "questions": self.questions,
             "answers": self.answers,
             "scores": self.scores,

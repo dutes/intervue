@@ -54,7 +54,33 @@ def round_for_index(index: int, start_round: int = 1) -> Tuple[Dict[str, Any], i
 
 def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], persona: str, question_id: str) -> str:
     rubric_json = json.dumps(session["rubric"], indent=2)
-    style = persona_style(persona)
+    
+    # Use the generated persona if available, otherwise fallback to the default style
+    persona_data = session.get("persona")
+    if persona_data:
+        interviewer_identity = (
+            f"Interviewer Name: {persona_data.get('name', 'Interviewer')}\n"
+            f"Role: {persona_data.get('role', 'Hiring Manager')}\n"
+            f"Tone: {persona_data.get('tone', 'Professional')}\n"
+            f"Key Concerns: {', '.join(persona_data.get('key_concerns', []))}\n"
+        )
+        # We might want to override the 'style' variable or append to it
+        # But the prompt expects 'Persona: {persona} ({style})'
+        # Let's adjust the prompt structure to be more flexible
+    else:
+        style = persona_style(persona)
+        interviewer_identity = f"Persona: {persona} ({style})\n"
+
+    cv_analysis = session.get("cv_analysis")
+    analysis_context = ""
+    if cv_analysis:
+        analysis_context = (
+            f"CV Analysis:\n"
+            f"Summary: {cv_analysis.get('summary')}\n"
+            f"Key Missing Info: {', '.join(cv_analysis.get('missing_info', []))}\n"
+            f"Areas to Probe: {', '.join(cv_analysis.get('weaknesses', []))}\n\n"
+        )
+
     previous_questions = session.get("questions", [])
     if previous_questions:
         previous_text = "\n".join(
@@ -66,8 +92,9 @@ def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], p
         f"Job Spec:\n{session['job_spec']}\n\n"
         f"CV:\n{session['cv_text']}\n\n"
         f"Rubric JSON:\n{rubric_json}\n\n"
+        f"{interviewer_identity}\n"
+        f"{analysis_context}"
         f"Round: {round_info['name']} - {round_info['goal']}\n"
-        f"Persona: {persona} ({style})\n"
         f"Question ID: {question_id}\n\n"
         f"Previously asked questions:\n{previous_text}\n\n"
         "Generate exactly one interview question."
