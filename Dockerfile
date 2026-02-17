@@ -9,7 +9,11 @@ RUN npm ci
 
 # Copy source and build
 COPY client_web/ .
+RUN ls -R .
+RUN cat index.html
+RUN ls -la src/ || echo "src/ not found"
 RUN npm run build
+RUN ls -R dist/ || echo "dist/ not found"
 
 # Stage 2: Setup the Python Backend
 FROM python:3.11-slim
