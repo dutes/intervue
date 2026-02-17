@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+import json
 from typing import Dict, Optional, List, Any
 
 from fastapi import FastAPI, HTTPException
@@ -15,6 +16,7 @@ from server.core import reports as report_core
 from server.core import rubric as rubric_core
 from server.core import scoring as scoring_core
 from server.core import analysis as analysis_core
+from server.core import storage as storage_core
 from server.core.state import SessionState, load_session_state
 from server.llm import cli_gemini, cli_openai
 
@@ -51,9 +53,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    # Run migration
+    try:
+        storage_core.migrate_json_to_db()
+    except Exception as e:
+        print(f"Migration failed: {e}")
+
 # Serves /assets from the build
 if (WEB_DIR / "assets").exists():
     app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
+
+# Serve reports (charts)
+if storage_core.REPORTS_DIR.exists():
+    app.mount("/reports", StaticFiles(directory=storage_core.REPORTS_DIR), name="reports")
 
 @app.get("/health")
 async def health() -> Dict[str, str]:
@@ -312,14 +326,25 @@ async def end_session(session_id: str) -> Dict[str, object]:
         "persona_feedback": report_payload["persona_feedback"],
     }
 
+
     return {"summary": summary, "report_paths": report_paths}
+
+
+@app.get("/sessions/{session_id}/report")
+async def get_report(session_id: str) -> Dict[str, Any]:
+    try:
+        report_path = report_core.REPORTS_DIR / session_id / "report.json"
+        if not report_path.exists():
+            raise HTTPException(status_code=404, detail="Report not found")
+        return json.loads(report_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # --- New Endpoints ---
 
 from fastapi import UploadFile, File
 from server.core.files import parse_file
-from server.core import storage as storage_core
 
 class FileUploadResponse(BaseModel):
     filename: str

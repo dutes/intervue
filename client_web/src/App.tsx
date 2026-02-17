@@ -4,6 +4,7 @@ import { Terminal, LayoutDashboard, PlusCircle } from "lucide-react";
 import Dashboard from "./components/Dashboard";
 import NewSession from "./components/NewSession";
 import Interview from "./components/Interview";
+import InterviewReport from "./components/Report";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/new" element={<NewSession />} />
             <Route path="/session/:id" element={<Interview />} />
+            <Route path="/report/:id" element={<InterviewReport />} />
           </Routes>
         </main>
       </div>

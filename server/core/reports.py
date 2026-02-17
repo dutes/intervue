@@ -122,20 +122,44 @@ def generate_persona_feedback(session: Dict[str, Any], strengths: List[str], wea
     return feedback
 
 
+
+from server.core import grading
+
 def build_report(session: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str]]:
     scores = session.get("scores", [])
     overall_scores = compute_question_overall_scores(scores)
-    overall_score = round(_avg(overall_scores), 2)
+    # Heuristic overall score (kept for charts/fallback)
+    heuristic_score = round(_avg(overall_scores), 2)
 
     competency_avgs = compute_competency_averages(scores)
-    sorted_competencies = sorted(competency_avgs.items(), key=lambda item: item[1], reverse=True)
-    strengths = [name for name, _ in sorted_competencies[:3]]
-    weaknesses = [name for name, _ in sorted_competencies[-3:]]
-
+    
     persona_avgs = compute_persona_averages(scores)
     report_paths = generate_charts(session["session_id"], competency_avgs, overall_scores, persona_avgs)
 
-    persona_feedback = generate_persona_feedback(session, strengths, weaknesses)
+    # Call LLM for qualitative feedback & final score
+    try:
+        grading_result = grading.generate_report(session)
+        overall_score = grading_result["overall_score"] * 100  # Convert 0-1 to 0-100 if needed, or keep 0-1
+        # Re-scale if grading returns 0.0-1.0 and we want 0-100. Schema says 0.0-1.0. App uses 0-100 usually?
+        # heuristic_score is 0-100 (avg of rubrics).
+        # Rubric scores are 0-4? compute_question_overall_scores seems to return 0-100?
+        # compute_question_overall_scores uses "overall_score" from score_payload.
+        # scoring.py: overall_score is calculate_score() -> which returns 0-100.
+        # So heuristic_score is 0-100.
+        # grading_result["overall_score"] is 0.0-1.0 (per prompt rules).
+        # Let's multiply by 100 to match conventions.
+        overall_score = round(grading_result["overall_score"] * 100, 2)
+        
+        strengths = grading_result["strengths"]
+        weaknesses = grading_result["weaknesses"]
+        persona_feedback = grading_result["persona_feedback"]
+    except Exception as e:
+        print(f"LLM Grading failed, falling back to heuristics: {e}")
+        overall_score = heuristic_score
+        sorted_competencies = sorted(competency_avgs.items(), key=lambda item: item[1], reverse=True)
+        strengths = [name for name, _ in sorted_competencies[:3]]
+        weaknesses = [name for name, _ in sorted_competencies[-3:]]
+        persona_feedback = generate_persona_feedback(session, strengths, weaknesses)
 
     report_payload = {
         "session_id": session["session_id"],

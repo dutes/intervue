@@ -101,6 +101,29 @@ Rules:
 """
 
 
+REPORT_PROMPT = """
+You are an expert interviewer. Generate a final interview report based on the session transcript and scores. Return STRICT JSON only.
+Schema:
+{
+  "overall_score": 0.0,
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "persona_feedback": [
+    {
+      "persona": "string",
+      "positives": ["string"],
+      "concerns": ["string"],
+      "next_step": "string"
+    }
+  ]
+}
+Rules:
+- overall_score should be a float 0.0-1.0
+- persona_feedback should analyze how well the candidate matched the target persona
+- next_step should be a recommendation (e.g., "Hire", "No Hire", "Follow-up")
+"""
+
+
 def _run_curl(payload: Dict[str, Any]) -> str:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:

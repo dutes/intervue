@@ -1,0 +1,8 @@
+
+> client_web@0.0.0 build
+> tsc -b && vite build
+
+src/components/Interview.tsx(30,22): error TS6133: 'setFinished' is declared but its value is never read.
+src/components/Interview.tsx(31,21): error TS6133: 'setSummary' is declared but its value is never read.
+src/components/Interview.tsx(88,19): error TS6133: 'data' is declared but its value is never read.
+src/components/Report.tsx(3,36): error TS6133: 'ArrowRight' is declared but its value is never read.
