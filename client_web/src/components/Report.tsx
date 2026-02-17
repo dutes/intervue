@@ -53,6 +53,8 @@ export default function InterviewReport() {
     if (error) return <div className="p-12 text-center text-red-400">{error}</div>;
     if (!report) return null;
 
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
     // Helper to get image URL
     const getChartUrl = (filename: string) => {
         // Filename is absolute path from server, e.g. "data/reports/session_id/chart.png"
@@ -115,18 +117,26 @@ export default function InterviewReport() {
                     <h3 className="text-slate-200 font-medium mb-4 flex items-center gap-2">
                         <BarChart2 className="w-5 h-5 text-indigo-400" /> Competency Breakdown
                     </h3>
-                    <div className="bg-white/5 rounded-xl p-4 flex items-center justify-center">
+                    <div
+                        className="bg-white/5 rounded-xl p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"
+                        onClick={() => setSelectedImage(getChartUrl(report.report_paths.competency_radar))}
+                    >
                         <img src={getChartUrl(report.report_paths.competency_radar)} alt="Competency Radar" className="max-h-64 object-contain" />
                     </div>
+                    <p className="text-xs text-center text-slate-500 mt-2">Click to expand</p>
                 </div>
 
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
                     <h3 className="text-slate-200 font-medium mb-4 flex items-center gap-2">
                         <Briefcase className="w-5 h-5 text-indigo-400" /> Performance Over Time
                     </h3>
-                    <div className="bg-white/5 rounded-xl p-4 flex items-center justify-center">
+                    <div
+                        className="bg-white/5 rounded-xl p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"
+                        onClick={() => setSelectedImage(getChartUrl(report.report_paths.score_over_time))}
+                    >
                         <img src={getChartUrl(report.report_paths.score_over_time)} alt="Score Trend" className="max-h-64 object-contain" />
                     </div>
+                    <p className="text-xs text-center text-slate-500 mt-2">Click to expand</p>
                 </div>
             </div>
 
@@ -176,6 +186,31 @@ export default function InterviewReport() {
                     <Download className="w-4 h-4" /> Save Report
                 </button>
             </div>
+
+            {/* Lightbox Modal */}
+            {selectedImage && (
+                <div
+                    className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setSelectedImage(null)}
+                >
+                    <div className="relative max-w-5xl max-h-screen">
+                        <img
+                            src={selectedImage}
+                            alt="Expanded view"
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                        />
+                        <button
+                            className="absolute -top-10 right-0 text-white hover:text-slate-300"
+                            onClick={() => setSelectedImage(null)}
+                        >
+                            Close
+                        </button>
+                        <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-xs pointer-events-none">
+                            Click anywhere to close
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
