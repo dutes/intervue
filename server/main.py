@@ -359,12 +359,26 @@ async def get_session(session_id: str) -> Dict[str, Any]:
 
 
 # SPA Catch-all
+from fastapi.responses import FileResponse
+
+# Debug: Print WEB_DIR and check assets
+print(f"DEBUG: WEB_DIR is {WEB_DIR}")
+if (WEB_DIR / "assets").exists():
+    print(f"DEBUG: Assets directory found at {WEB_DIR / 'assets'}")
+    # List a few files to verify
+    try:
+        print(f"DEBUG: Assets content: {[f.name for f in (WEB_DIR / 'assets').iterdir()]}")
+    except Exception as e:
+        print(f"DEBUG: Failed to list assets: {e}")
+else:
+    print(f"DEBUG: Assets directory NOT found at {WEB_DIR / 'assets'}")
+
 @app.get("/{full_path:path}")
 async def catch_all(full_path: str):
-    # If the path is a file in WEB_DIR, serve it? (e.g. vite.svg)
+    # If the path is a file in WEB_DIR, serve it correctly
     file_path = WEB_DIR / full_path
     if file_path.exists() and file_path.is_file():
-        return HTMLResponse(file_path.read_text(encoding="utf-8")) # Naive media type, but OK for text files
+        return FileResponse(file_path)
     
     # Otherwise return index.html for client-side routing
     if (WEB_DIR / "index.html").exists():
