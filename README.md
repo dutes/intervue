@@ -2,7 +2,7 @@
 
 **Intervue** is a privacy-first, AI-powered interview practice tool designed specifically for job seekers. It provides a realistic, self-contained environment to sharpen your technique, test your knowledge, and receive honest feedback—all without your data ever leaving your machine (except for processing by your chosen AI provider).
 
-## ✨ Core Features (Current)
+##  Core Features (Current)
 
 *   **Role-Aware Simulation**: Tailors every question to the specific Job Description and CV you provide.
 *   **Three-Stage Interview**: Progresses through Screening, Deep Dive, and Challenge rounds to test different levels of depth.
@@ -14,10 +14,10 @@
 =======
 **Intervue** is an AI-powered interview practice tool designed to help you prepare for real-world job interviews. It simulates different interview stages (Screening, Deep Dive, Challenge) and provides instant feedback on your answers.
 
-## 🚀 Quick Start Guide 
+##  Quick Start Guide 
 The easiest way to run Intervue is using **Docker**. This bundles everything into a single package so you don't need to install Python or Node.js manually.
 
-## 🔒 Data Privacy & Protection
+##  Data Privacy & Protection
 
 Intervue is built with a "Local-First" philosophy. We take your data privacy seriously:
 
@@ -32,7 +32,7 @@ Intervue is built with a "Local-First" philosophy. We take your data privacy ser
 
 ---
 
-## 🚀 Quick Start Guide
+##  Quick Start Guide
 
 The easiest way to run Intervue is using **Docker**. This bundles everything (Backend, Frontend, and Storage) into a single, isolated package.
 
@@ -58,7 +58,7 @@ The easiest way to run Intervue is using **Docker**. This bundles everything (Ba
 
 Once the logs show the server is ready, open your browser to:
 
-👉 **[http://localhost:8000](http://localhost:8000)**
+ **[http://localhost:8000](http://localhost:8000)**
 
 ---
 
