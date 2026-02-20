@@ -1,6 +1,5 @@
 # Intervue
 
-<<<<<<< HEAD
 **Intervue** is a privacy-first, AI-powered interview practice tool designed specifically for job seekers. It provides a realistic, self-contained environment to sharpen your technique, test your knowledge, and receive honest feedback—all without your data ever leaving your machine (except for processing by your chosen AI provider).
 
 ## ✨ Core Features (Current)
