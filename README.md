@@ -16,7 +16,6 @@
 
 ## 🚀 Quick Start Guide 
 The easiest way to run Intervue is using **Docker**. This bundles everything into a single package so you don't need to install Python or Node.js manually.
->>>>>>> a77647888a1b8511f585298219bd7beafd9aa1da
 
 ## 🔒 Data Privacy & Protection
 
