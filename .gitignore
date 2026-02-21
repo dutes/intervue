@@ -11,7 +11,7 @@ venv/
 env/
 
 # Local app data (if you store sessions/reports)
-data/
+backend/data/
 *.log
 
 # OS / IDE

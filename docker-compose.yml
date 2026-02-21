@@ -10,4 +10,4 @@ services:
       - OPENAI_MODEL=gpt-5.2
     volumes:
       # Persist data (sessions, reports)
-      - ./data:/app/data
+      - ./backend/data:/app/data

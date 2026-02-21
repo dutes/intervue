@@ -1,14 +1,14 @@
 # Stage 1: Build the React Frontend
 FROM node:20-alpine AS frontend
 
-WORKDIR /app/client_web
+WORKDIR /app/frontend
 
 # Install dependencies
-COPY client_web/package.json client_web/package-lock.json ./
+COPY frontend/web/package.json frontend/web/package-lock.json ./
 RUN npm ci
 
 # Copy source and build
-COPY client_web/ .
+COPY frontend/web/ .
 # Add a cache-busting argument if needed, or just rely on file changes
 ARG CACHEBUST=1
 RUN npm run build
@@ -23,14 +23,14 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
-COPY server/ ./server/
+COPY backend/server/ ./server/
 
 # Copy built frontend assets from Stage 1
-COPY --from=frontend /app/client_web/dist ./web
+COPY --from=frontend /app/frontend/dist ./web
 RUN ls -R /app/web || echo "No web dir found in stage 2"
 
 # Expose the API port
