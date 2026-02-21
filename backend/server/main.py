@@ -43,7 +43,8 @@ if (BASE_DIR.parent / "web").exists():
     WEB_DIR = BASE_DIR.parent / "web"
 else:
     # fallback for local dev: frontend is now in ../../frontend/web/dist
-    WEB_DIR = BASE_DIR.parents[1].parent / "frontend" / "web" / "dist"
+    # BASE_DIR is backend/server. BASE_DIR.parent.parent is root.
+    WEB_DIR = BASE_DIR.parent.parent / "frontend" / "web" / "dist"
 
 # If WEB_DIR doesn't exist (e.g. local dev without build), we might crash on mount.
 # But let's assume for this step we are focusing on Docker support.
