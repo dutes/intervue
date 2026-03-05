@@ -17,6 +17,7 @@ from server.core import rubric as rubric_core
 from server.core import scoring as scoring_core
 from server.core import analysis as analysis_core
 from server.core import storage as storage_core
+from server.core import coaching as coaching_core
 from server.core.state import SessionState, load_session_state
 from server.llm import cli_gemini, cli_openai
 
@@ -283,7 +284,7 @@ async def next_question(session_id: str) -> Dict[str, str]:
 
 
 @app.post("/sessions/{session_id}/answer")
-async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, bool]:
+async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, Any]:
     session = _get_session(session_id)
     question = next((q for q in session.questions if q["question_id"] == request.question_id), None)
     if not question:
@@ -322,9 +323,39 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
                 "timestamp": time.time(),
             }
         )
-    session.save()
-    return {"ok": True}
 
+    competency_scores = coaching_core.aggregate_competencies(score_payloads)
+    star_feedback = coaching_core.aggregate_star(score_payloads)
+    coaching = coaching_core.build_coaching(
+        question_text=question.get("text", ""),
+        answer_text=request.answer_text,
+        competency_scores=competency_scores,
+        star_feedback=star_feedback,
+    )
+    avg_overall = round(sum(p["overall_score"] for p in score_payloads) / len(score_payloads), 2)
+
+    session.logs.append(
+        {
+            "type": "coaching",
+            "question_id": request.question_id,
+            "parsed": {
+                "competency_scores": competency_scores,
+                "star_feedback": star_feedback,
+                "coaching": coaching,
+                "average_overall": avg_overall,
+            },
+            "timestamp": time.time(),
+        }
+    )
+
+    session.save()
+    return {
+        "ok": True,
+        "average_overall_score": avg_overall,
+        "competency_scores": competency_scores,
+        "star_feedback": star_feedback,
+        "coaching": coaching,
+    }
 
 @app.post("/sessions/{session_id}/end")
 async def end_session(session_id: str) -> Dict[str, object]:
@@ -427,6 +458,9 @@ async def catch_all(full_path: str):
         return HTMLResponse((WEB_DIR / "index.html").read_text(encoding="utf-8"))
     
     return {"error": "Frontend not found. Did you run npm run build?"}
+
+
+
 
 
 

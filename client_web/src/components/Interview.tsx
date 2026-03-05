@@ -16,6 +16,26 @@ interface Session {
     start_round: number;
 }
 
+interface Coaching {
+    strengths: string[];
+    improvements: string[];
+    rewrite: string;
+}
+
+interface StarFeedback {
+    star_complete: boolean;
+    metrics_present: boolean;
+    specificity: number;
+    summary: string;
+}
+
+interface AnswerFeedback {
+    average_overall_score: number;
+    competency_scores: Record<string, number>;
+    star_feedback: StarFeedback;
+    coaching: Coaching;
+}
+
 export default function Interview() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -27,10 +47,9 @@ export default function Interview() {
     const [error, setError] = useState<string | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [latestFeedback, setLatestFeedback] = useState<AnswerFeedback | null>(null);
     const recognitionRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-
-
 
     useEffect(() => {
         if (!id) return;
@@ -43,13 +62,10 @@ export default function Interview() {
             if (!res.ok) throw new Error("Failed to load session");
             const data = await res.json();
             setSession(data);
-            if (data.status === 'completed') {
+            if (data.status === "completed") {
                 navigate(`/report/${id}`);
                 setLoading(false);
             } else {
-                // Determine if we need to fetch the next question
-                // If it's a new session, yes. 
-                // In a real app we might check if there's an unanswered question or just fetch next.
                 await fetchNextQuestion();
             }
         } catch (err: any) {
@@ -84,9 +100,6 @@ export default function Interview() {
             setLoading(true);
             const res = await fetch(`http://127.0.0.1:8000/sessions/${id}/end`, { method: "POST" });
             await res.json();
-            // setSummary(data.summary);
-            // setFinished(true);
-            // setSession(prev => prev ? { ...prev, status: 'completed' } : null);
             navigate(`/report/${id}`);
         } catch (err) {
             console.error(err);
@@ -101,14 +114,17 @@ export default function Interview() {
 
         setSubmitting(true);
         try {
-            await fetch(`http://127.0.0.1:8000/sessions/${id}/answer`, {
+            const res = await fetch(`http://127.0.0.1:8000/sessions/${id}/answer`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     question_id: currentQuestion.question_id,
-                    answer_text: answer
-                })
+                    answer_text: answer,
+                }),
             });
+            if (!res.ok) throw new Error("Failed to submit answer");
+            const data = (await res.json()) as AnswerFeedback;
+            setLatestFeedback(data);
             setAnswer("");
             await fetchNextQuestion();
         } catch (err: any) {
@@ -127,7 +143,7 @@ export default function Interview() {
     };
 
     const startRecording = () => {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
             alert("Speech recognition is not supported in this browser.");
             return;
         }
@@ -136,7 +152,7 @@ export default function Interview() {
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = true;
         recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = 'en-US';
+        recognitionRef.current.lang = "en-US";
 
         recognitionRef.current.onstart = () => {
             setIsRecording(true);
@@ -152,23 +168,14 @@ export default function Interview() {
         };
 
         recognitionRef.current.onresult = (event: any) => {
-            let interimTranscript = '';
-            let finalTranscript = '';
-
+            let finalTranscript = "";
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
                     finalTranscript += event.results[i][0].transcript;
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
                 }
             }
-
-            // Append to existing answer or replace? 
-            // Usually simpler to just append or update current buffer if we want real-time.
-            // But here we might overwrite user typing if mixing modes.
-            // Let's just append final results to end of current text for simplicity
             if (finalTranscript) {
-                setAnswer(prev => prev + (prev ? " " : "") + finalTranscript);
+                setAnswer((prev) => prev + (prev ? " " : "") + finalTranscript);
             }
         };
 
@@ -193,18 +200,16 @@ export default function Interview() {
         const handleFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
         };
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+        return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
     }, []);
 
     if (loading && !session) return <div className="p-12 text-center">Loading session...</div>;
     if (error) return <div className="p-12 text-center text-red-400">{error}</div>;
 
-
     return (
-        <div ref={containerRef} className={`transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-50 bg-slate-950 p-8 flex flex-col justify-center' : 'max-w-4xl mx-auto grid gap-6 pb-20'}`}>
-            {/* Header */}
-            <div className={`flex items-center justify-between ${isFullscreen ? 'mb-8 max-w-4xl mx-auto w-full' : ''}`}>
+        <div ref={containerRef} className={`transition-all duration-300 ${isFullscreen ? "fixed inset-0 z-50 bg-slate-950 p-8 flex flex-col justify-center" : "max-w-4xl mx-auto grid gap-6 pb-20"}`}>
+            <div className={`flex items-center justify-between ${isFullscreen ? "mb-8 max-w-4xl mx-auto w-full" : ""}`}>
                 <div className="flex items-center gap-3">
                     <div className="bg-indigo-500/10 p-2 rounded-lg">
                         <Bot className="w-6 h-6 text-indigo-400" />
@@ -230,8 +235,7 @@ export default function Interview() {
                 </div>
             </div>
 
-            {/* Chat Area */}
-            <div className={`bg-slate-900/50 border border-slate-800 rounded-2xl p-6 md:p-10 flex flex-col justify-center shadow-inner relative overflow-hidden ${isFullscreen ? 'flex-1 max-w-4xl mx-auto w-full mb-8' : 'min-h-[300px]'}`}>
+            <div className={`bg-slate-900/50 border border-slate-800 rounded-2xl p-6 md:p-10 flex flex-col justify-center shadow-inner relative overflow-hidden ${isFullscreen ? "flex-1 max-w-4xl mx-auto w-full mb-8" : "min-h-[300px]"}`}>
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent opacity-50"></div>
 
                 {loading ? (
@@ -241,15 +245,12 @@ export default function Interview() {
                     </div>
                 ) : (
                     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-                        <h3 className="text-2xl md:text-3xl font-medium text-slate-100 leading-relaxed">
-                            {currentQuestion?.text}
-                        </h3>
+                        <h3 className="text-2xl md:text-3xl font-medium text-slate-100 leading-relaxed">{currentQuestion?.text}</h3>
                     </div>
                 )}
             </div>
 
-            {/* Input Area */}
-            <div className={isFullscreen ? 'max-w-4xl mx-auto w-full' : ''}>
+            <div className={isFullscreen ? "max-w-4xl mx-auto w-full" : ""}>
                 <form onSubmit={submitAnswer} className="relative mt-4">
                     <div className="absolute top-4 left-4">
                         <User className="w-5 h-5 text-slate-500" />
@@ -260,7 +261,7 @@ export default function Interview() {
                         value={answer}
                         onChange={(e) => setAnswer(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter' && e.ctrlKey) submitAnswer(e);
+                            if (e.key === "Enter" && e.ctrlKey) submitAnswer(e);
                         }}
                         disabled={submitting || loading}
                         placeholder="Type your answer here... (Ctrl+Enter to submit)"
@@ -270,10 +271,7 @@ export default function Interview() {
                         <button
                             type="button"
                             onClick={toggleRecording}
-                            className={`p-2.5 rounded-xl transition-all ${isRecording
-                                ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 animate-pulse'
-                                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                                }`}
+                            className={`p-2.5 rounded-xl transition-all ${isRecording ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 animate-pulse" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
                             title={isRecording ? "Stop Recording" : "Start Voice Input"}
                         >
                             {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
@@ -288,6 +286,41 @@ export default function Interview() {
                     </div>
                 </form>
             </div>
+
+            {latestFeedback && (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+                    <h3 className="text-white font-semibold mb-3">Per-Answer Coaching</h3>
+                    <p className="text-sm text-slate-300 mb-2">Average score: <span className="text-indigo-300">{latestFeedback.average_overall_score}</span></p>
+                    <p className="text-sm text-slate-300 mb-2">STAR feedback: <span className="text-slate-200">{latestFeedback.star_feedback.summary}</span></p>
+                    <p className="text-xs text-slate-500 mb-4">
+                        STAR complete: {String(latestFeedback.star_feedback.star_complete)} | Metrics: {String(latestFeedback.star_feedback.metrics_present)} | Specificity: {latestFeedback.star_feedback.specificity}
+                    </p>
+
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p className="text-xs uppercase text-emerald-400 mb-1">Strengths</p>
+                            <ul className="text-sm text-slate-300 space-y-1">
+                                {latestFeedback.coaching.strengths.map((item, idx) => (
+                                    <li key={idx}>• {item}</li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div>
+                            <p className="text-xs uppercase text-amber-400 mb-1">Improve Next</p>
+                            <ul className="text-sm text-slate-300 space-y-1">
+                                {latestFeedback.coaching.improvements.map((item, idx) => (
+                                    <li key={idx}>• {item}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p className="text-xs uppercase text-indigo-400 mb-1">Rewrite</p>
+                        <pre className="text-xs whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{latestFeedback.coaching.rewrite}</pre>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
