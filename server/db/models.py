@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, Text, JSON
+from sqlalchemy import Column, String, Float, Integer, Text, JSON
 from .database import Base
 
 class InterviewSession(Base):
@@ -10,7 +10,7 @@ class InterviewSession(Base):
     job_spec = Column(Text)
     cv_text = Column(Text)
     provider = Column(String)
-    start_round = Column(Float, default=1)
+    start_round = Column(Integer, default=1)
     overall_score = Column(Float, nullable=True)
     
     # JSON columns for complex data
@@ -21,3 +21,4 @@ class InterviewSession(Base):
     answers = Column(JSON, default=list)
     scores = Column(JSON, default=list)
     logs = Column(JSON, default=list)
+

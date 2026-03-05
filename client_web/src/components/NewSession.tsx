@@ -34,7 +34,7 @@ export default function NewSession() {
             });
             if (!res.ok) throw new Error("Upload failed");
             const data = await res.json();
-            setCvText(data.text_preview); // Or handle text_length note if needed
+            setCvText(data.text);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -204,3 +204,4 @@ export default function NewSession() {
         </div>
     );
 }
+

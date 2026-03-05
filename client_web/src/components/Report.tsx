@@ -30,6 +30,7 @@ export default function InterviewReport() {
     const [report, setReport] = useState<ReportData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -52,8 +53,6 @@ export default function InterviewReport() {
     if (loading) return <div className="p-12 text-center text-slate-400">Generatng Interview Report...</div>;
     if (error) return <div className="p-12 text-center text-red-400">{error}</div>;
     if (!report) return null;
-
-    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     // Helper to get image URL
     const getChartUrl = (filename: string) => {
@@ -214,3 +213,5 @@ export default function InterviewReport() {
         </div>
     );
 }
+
+

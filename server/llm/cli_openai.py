@@ -125,8 +125,8 @@ Rules:
 """
 
 
-def _run_curl(payload: Dict[str, Any]) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
+def _run_curl(payload: Dict[str, Any], api_key: str | None = None) -> str:
+    api_key = api_key or os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not set")
 
@@ -152,7 +152,7 @@ def _run_curl(payload: Dict[str, Any]) -> str:
     return result.stdout
 
 
-def call_openai(prompt: str, temperature: float = 0.2) -> str:
+def call_openai(prompt: str, temperature: float = 0.2, api_key: str | None = None) -> str:
     payload = {
         "model": DEFAULT_MODEL,
         "input": prompt,
@@ -160,7 +160,7 @@ def call_openai(prompt: str, temperature: float = 0.2) -> str:
         "text": {"format": {"type": "json_object"}},
     }
 
-    raw = _run_curl(payload)
+    raw = _run_curl(payload, api_key=api_key)
     data = json.loads(raw)
 
     # Responses API includes "error": null on success, so only fail if it's truthy.
@@ -179,6 +179,10 @@ def call_openai(prompt: str, temperature: float = 0.2) -> str:
 
     return output.strip()
 
-def test_connection() -> None:
+def test_connection(api_key: str | None = None) -> None:
     prompt = "Return STRICT JSON only: {\"ok\": true}"
-    _ = call_openai(prompt, temperature=0)
+    _ = call_openai(prompt, temperature=0, api_key=api_key)
+
+
+
+

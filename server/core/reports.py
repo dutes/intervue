@@ -127,7 +127,7 @@ def generate_persona_feedback(session: Dict[str, Any], strengths: List[str], wea
 
 from server.core import grading
 
-def build_report(session: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str]]:
+def build_report(session: Dict[str, Any], api_key: str | None = None) -> Tuple[Dict[str, Any], Dict[str, str]]:
     scores = session.get("scores", [])
     overall_scores = compute_question_overall_scores(scores)
     # Heuristic overall score (kept for charts/fallback)
@@ -140,7 +140,7 @@ def build_report(session: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str
 
     # Call LLM for qualitative feedback & final score
     try:
-        grading_result = grading.generate_report(session)
+        grading_result = grading.generate_report(session, api_key=api_key)
         overall_score = grading_result["overall_score"] * 100  # Convert 0-1 to 0-100 if needed, or keep 0-1
         # Re-scale if grading returns 0.0-1.0 and we want 0-100. Schema says 0.0-1.0. App uses 0-100 usually?
         # heuristic_score is 0-100 (avg of rubrics).
@@ -176,3 +176,4 @@ def build_report(session: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, str
     }
     save_report(session["session_id"], report_payload)
     return report_payload, report_paths
+
