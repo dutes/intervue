@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { CheckCircle, AlertCircle, BarChart2, Award, Briefcase, Download } from "lucide-react";
+import { CheckCircle, AlertCircle, BarChart2, Award, Briefcase, Download, TrendingUp, CalendarDays } from "lucide-react";
 
 interface PersonaFeedback {
     persona: string;
@@ -9,15 +9,29 @@ interface PersonaFeedback {
     next_step: string;
 }
 
+interface CompetencyTrend {
+    series: number[];
+    delta: number;
+    trend: "improving" | "declining" | "stable";
+}
+
+interface PracticeDay {
+    day: string;
+    focus: string;
+    task: string;
+}
+
 interface ReportData {
     session_id: string;
     overall_score: number;
     competency_averages: Record<string, number>;
+    competency_trends: Record<string, CompetencyTrend>;
     strengths: string[];
     weaknesses: string[];
     overall_scores: number[];
     persona_averages: Record<string, number>;
     persona_feedback: PersonaFeedback[];
+    practice_plan_7_day: PracticeDay[];
     report_paths: {
         competency_radar: string;
         score_over_time: string;
@@ -50,22 +64,17 @@ export default function InterviewReport() {
         }
     };
 
-    if (loading) return <div className="p-12 text-center text-slate-400">Generatng Interview Report...</div>;
+    if (loading) return <div className="p-12 text-center text-slate-400">Generating Interview Report...</div>;
     if (error) return <div className="p-12 text-center text-red-400">{error}</div>;
     if (!report) return null;
 
-    // Helper to get image URL
     const getChartUrl = (filename: string) => {
-        // Filename is absolute path from server, e.g. "data/reports/session_id/chart.png"
-        // We mounted "/reports" to "data/reports".
-        // So we need to construct "/reports/{session_id}/{filename_basename}"
         const basename = filename.split(/[\\/]/).pop();
         return `http://127.0.0.1:8000/reports/${id}/${basename}`;
     };
 
     return (
         <div className="max-w-4xl mx-auto pb-20 space-y-8 animate-in fade-in duration-500">
-            {/* Header */}
             <div className="flex justify-between items-end mb-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2">Interview Report</h1>
@@ -73,13 +82,12 @@ export default function InterviewReport() {
                 </div>
                 <div className="text-right">
                     <div className="text-sm text-slate-400 uppercase tracking-wider font-medium mb-1">Overall Score</div>
-                    <div className={`text-5xl font-bold ${report.overall_score >= 80 ? 'text-emerald-400' : report.overall_score >= 60 ? 'text-indigo-400' : 'text-amber-400'}`}>
+                    <div className={`text-5xl font-bold ${report.overall_score >= 80 ? "text-emerald-400" : report.overall_score >= 60 ? "text-indigo-400" : "text-amber-400"}`}>
                         {report.overall_score}
                     </div>
                 </div>
             </div>
 
-            {/* Executive Summary Cards */}
             <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
                     <h3 className="text-emerald-400 font-medium mb-4 flex items-center gap-2">
@@ -110,7 +118,6 @@ export default function InterviewReport() {
                 </div>
             </div>
 
-            {/* Visual Analytics */}
             <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
                     <h3 className="text-slate-200 font-medium mb-4 flex items-center gap-2">
@@ -139,7 +146,43 @@ export default function InterviewReport() {
                 </div>
             </div>
 
-            {/* Detailed Feedback */}
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+                <h3 className="text-white font-medium mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-indigo-400" /> Competency Trend Tracking
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                    {Object.entries(report.competency_trends || {}).map(([name, trend]) => (
+                        <div key={name} className="border border-slate-800 rounded-xl p-4 bg-slate-950/40">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-slate-200">{name}</span>
+                                <span className={`text-xs uppercase ${trend.trend === "improving" ? "text-emerald-400" : trend.trend === "declining" ? "text-amber-400" : "text-slate-400"}`}>
+                                    {trend.trend}
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-400">Delta: {trend.delta}</p>
+                            <p className="text-xs text-slate-500 mt-1">Series: {trend.series.join(" → ")}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+                <h3 className="text-white font-medium mb-4 flex items-center gap-2">
+                    <CalendarDays className="w-5 h-5 text-indigo-400" /> 7-Day Practice Plan
+                </h3>
+                <div className="grid gap-3">
+                    {(report.practice_plan_7_day || []).map((item, idx) => (
+                        <div key={idx} className="border border-slate-800 rounded-xl p-4 bg-slate-950/40">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-slate-200 font-medium">{item.day}</p>
+                                <p className="text-xs text-indigo-300">{item.focus}</p>
+                            </div>
+                            <p className="text-sm text-slate-400 mt-2">{item.task}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             <div className="space-y-6">
                 <h3 className="text-xl font-bold text-white">Interviewer Feedback</h3>
                 <div className="grid gap-6">
@@ -186,7 +229,6 @@ export default function InterviewReport() {
                 </button>
             </div>
 
-            {/* Lightbox Modal */}
             {selectedImage && (
                 <div
                     className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
@@ -213,5 +255,3 @@ export default function InterviewReport() {
         </div>
     );
 }
-
-
