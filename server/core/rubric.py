@@ -15,15 +15,15 @@ class LLMResult:
         self.prompt = prompt
 
 
-def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts: int = 3) -> Tuple[str, list[str]]:
+def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts: int = 3, api_key: str | None = None) -> Tuple[str, list[str]]:
     responses = []
     last_error: str | None = None
     for _ in range(attempts):
         try:
             if provider == "openai":
-                response = cli_openai.call_openai(prompt)
+                response = cli_openai.call_openai(prompt, api_key=api_key)
             elif provider == "gemini":
-                response = cli_gemini.call_gemini(prompt)
+                response = cli_gemini.call_gemini(prompt, api_key=api_key)
             else:
                 raise ValueError("Unsupported provider for LLM call")
             responses.append(response)
@@ -34,13 +34,13 @@ def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts
     raise RuntimeError(last_error or "LLM call failed")
 
 
-def _call_and_validate(prompt: str, provider: str) -> Tuple[Dict[str, Any], str, str]:
+def _call_and_validate(prompt: str, provider: str, api_key: str | None = None) -> Tuple[Dict[str, Any], str, str]:
     fix_prompt = cli_openai.JSON_FIX_PROMPT if provider == "openai" else cli_gemini.JSON_FIX_PROMPT
     attempts = 3
     raw = ""
     error_message = ""
     for _ in range(attempts):
-        raw, _responses = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1)
+        raw, _responses = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1, api_key=api_key)
         try:
             parsed = parse_json_response(raw)
             rubric = Rubric.model_validate(parsed)
@@ -51,7 +51,7 @@ def _call_and_validate(prompt: str, provider: str) -> Tuple[Dict[str, Any], str,
     raise RuntimeError(error_message or "LLM JSON validation failed")
 
 
-def generate_rubric(job_spec: str, cv_text: str, provider: str) -> LLMResult:
+def generate_rubric(job_spec: str, cv_text: str, provider: str, api_key: str | None = None) -> LLMResult:
     if provider == "mock":
         rubric = mock.generate_rubric()
         prompt = "MOCK: rubric generation"
@@ -61,5 +61,6 @@ def generate_rubric(job_spec: str, cv_text: str, provider: str) -> LLMResult:
         f"{cli_openai.RUBRIC_PROMPT if provider == 'openai' else cli_gemini.RUBRIC_PROMPT}\n\n"
         f"Job Spec:\n{job_spec}\n\nCV:\n{cv_text}\n"
     )
-    parsed, raw, prompt_used = _call_and_validate(prompt, provider)
+    parsed, raw, prompt_used = _call_and_validate(prompt, provider, api_key=api_key)
     return LLMResult(parsed=parsed, raw=raw, prompt=prompt_used)
+

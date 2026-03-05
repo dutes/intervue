@@ -106,6 +106,7 @@ async def health() -> Dict[str, str]:
 
 
 SESSIONS: Dict[str, SessionState] = {}
+SESSION_API_KEYS: Dict[str, str] = {}
 
 
 class StartRequest(BaseModel):
@@ -165,31 +166,20 @@ def _normalize_provider(provider: str) -> str:
     return provider.strip().lower()
 
 
-def _set_api_key(provider: str, api_key: Optional[str]) -> None:
-    if not api_key:
-        return
-    if provider == "openai":
-        os.environ["OPENAI_API_KEY"] = api_key
-    elif provider == "gemini":
-        os.environ["GEMINI_API_KEY"] = api_key
-
 
 def _verify_provider(provider: str, api_key: Optional[str]) -> None:
     provider = _normalize_provider(provider)
     if provider == "mock":
         return
-
-    _set_api_key(provider, api_key)
-
     if provider == "openai":
-        if not os.getenv("OPENAI_API_KEY"):
+        if not (api_key or os.getenv("OPENAI_API_KEY")):
             raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
-        cli_openai.test_connection()
+        cli_openai.test_connection(api_key=api_key)
         return
     if provider == "gemini":
-        if not os.getenv("GEMINI_API_KEY"):
+        if not (api_key or os.getenv("GEMINI_API_KEY")):
             raise HTTPException(status_code=400, detail="GEMINI_API_KEY is not set")
-        cli_gemini.test_connection()
+        cli_gemini.test_connection(api_key=api_key)
         return
 
     raise HTTPException(status_code=400, detail="Unsupported provider")
@@ -208,7 +198,7 @@ async def start_session(request: StartRequest) -> StartResponse:
 
     session = SessionState(request.job_spec, request.cv_text, provider, request.start_round)
 
-    rubric_result = rubric_core.generate_rubric(request.job_spec, request.cv_text, provider)
+    rubric_result = rubric_core.generate_rubric(request.job_spec, request.cv_text, provider, api_key=request.api_key)
     session.rubric = rubric_result.parsed
     session.logs.append(
         {
@@ -222,7 +212,7 @@ async def start_session(request: StartRequest) -> StartResponse:
 
     # 1. Generate Persona
     try:
-        persona = analysis_core.generate_persona(request.job_spec, provider)
+        persona = analysis_core.generate_persona(request.job_spec, provider, api_key=request.api_key)
         session.persona = persona
         session.logs.append(
             {
@@ -238,7 +228,7 @@ async def start_session(request: StartRequest) -> StartResponse:
     # 2. Analyze CV (requires persona)
     if session.persona:
         try:
-            cv_analysis = analysis_core.analyze_cv(request.cv_text, request.job_spec, session.persona, provider)
+            cv_analysis = analysis_core.analyze_cv(request.cv_text, request.job_spec, session.persona, provider, api_key=request.api_key)
             session.cv_analysis = cv_analysis
             session.logs.append(
                 {
@@ -252,6 +242,8 @@ async def start_session(request: StartRequest) -> StartResponse:
 
     session.save()
     SESSIONS[session.session_id] = session
+    if request.api_key:
+        SESSION_API_KEYS[session.session_id] = request.api_key
     return StartResponse(
         session_id=session.session_id,
         total_questions=question_core.total_questions(request.start_round),
@@ -268,7 +260,8 @@ async def next_question(session_id: str) -> Dict[str, str]:
     if index >= question_core.total_questions(session.start_round):
         raise HTTPException(status_code=400, detail="Interview already complete")
 
-    question = question_core.generate_question(session.to_dict(), index)
+    api_key = SESSION_API_KEYS.get(session_id)
+    question = question_core.generate_question(session.to_dict(), index, api_key=api_key)
     session.questions.append({k: question[k] for k in ["question_id", "text", "round", "persona"]})
     session.logs.append(
         {
@@ -297,8 +290,9 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
         raise HTTPException(status_code=404, detail="Question not found")
 
     personas = ["positive", "neutral", "hostile"]
+    api_key = SESSION_API_KEYS.get(session_id)
     score_payloads = [
-        scoring_core.score_answer(session.to_dict(), question, request.answer_text, persona)
+        scoring_core.score_answer(session.to_dict(), question, request.answer_text, persona, api_key=api_key)
         for persona in personas
     ]
     session.answers.append(
@@ -335,7 +329,8 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
 @app.post("/sessions/{session_id}/end")
 async def end_session(session_id: str) -> Dict[str, object]:
     session = _get_session(session_id)
-    report_payload, report_paths = report_core.build_report(session.to_dict())
+    api_key = SESSION_API_KEYS.get(session_id)
+    report_payload, report_paths = report_core.build_report(session.to_dict(), api_key=api_key)
     session.status = "completed"
     session.save()
 
@@ -368,6 +363,7 @@ from server.core.files import parse_file
 
 class FileUploadResponse(BaseModel):
     filename: str
+    text: str
     text_preview: str
     text_length: int
 
@@ -381,6 +377,7 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
     
     return FileUploadResponse(
         filename=file.filename or "unknown",
+        text=text,
         text_preview=text[:200] + "..." if len(text) > 200 else text,
         text_length=len(text)
     )
@@ -430,4 +427,8 @@ async def catch_all(full_path: str):
         return HTMLResponse((WEB_DIR / "index.html").read_text(encoding="utf-8"))
     
     return {"error": "Frontend not found. Did you run npm run build?"}
+
+
+
+
 

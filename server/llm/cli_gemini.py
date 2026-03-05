@@ -124,8 +124,8 @@ Rules:
 """
 
 
-def _run_curl(payload: Dict[str, Any]) -> str:
-    api_key = os.getenv("GEMINI_API_KEY")
+def _run_curl(payload: Dict[str, Any], api_key: str | None = None) -> str:
+    api_key = api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not set")
 
@@ -147,12 +147,12 @@ def _run_curl(payload: Dict[str, Any]) -> str:
     return result.stdout
 
 
-def call_gemini(prompt: str, temperature: float = 0.2) -> str:
+def call_gemini(prompt: str, temperature: float = 0.2, api_key: str | None = None) -> str:
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": temperature},
     }
-    raw = _run_curl(payload)
+    raw = _run_curl(payload, api_key=api_key)
     data = json.loads(raw)
     if "error" in data:
         raise RuntimeError(f"Gemini API error: {data['error']}")
@@ -168,6 +168,10 @@ def call_gemini(prompt: str, temperature: float = 0.2) -> str:
     return text.strip()
 
 
-def test_connection() -> None:
+def test_connection(api_key: str | None = None) -> None:
     prompt = "Return STRICT JSON only: {\"ok\": true}"
-    _ = call_gemini(prompt, temperature=0)
+    _ = call_gemini(prompt, temperature=0, api_key=api_key)
+
+
+
+

@@ -91,13 +91,13 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="flex items-center gap-6">
-                                    {session.overall_score && (
+                                    {(session.overall_score !== undefined && session.overall_score !== null) && (
                                         <div className="text-right">
                                             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Score</p>
-                                            <p className={`text-xl font-bold ${session.overall_score >= 8 ? 'text-emerald-400' :
-                                                session.overall_score >= 6 ? 'text-amber-400' : 'text-red-400'
+                                            <p className={`text-xl font-bold ${session.overall_score >= 80 ? 'text-emerald-400' :
+                                                session.overall_score >= 60 ? 'text-amber-400' : 'text-red-400'
                                                 }`}>
-                                                {session.overall_score}/10
+                                                {session.overall_score}/100
                                             </p>
                                         </div>
                                     )}
@@ -111,3 +111,4 @@ export default function Dashboard() {
         </div>
     );
 }
+

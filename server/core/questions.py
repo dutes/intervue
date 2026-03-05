@@ -108,15 +108,15 @@ def parse_question(payload: Dict[str, Any]) -> Question:
 from server.llm import cli_gemini, cli_openai, mock
 
 
-def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts: int = 3) -> str:
+def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts: int = 3, api_key: str | None = None) -> str:
     responses = []
     last_error: str | None = None
     for _ in range(attempts):
         try:
             if provider == "openai":
-                response = cli_openai.call_openai(prompt)
+                response = cli_openai.call_openai(prompt, api_key=api_key)
             elif provider == "gemini":
-                response = cli_gemini.call_gemini(prompt)
+                response = cli_gemini.call_gemini(prompt, api_key=api_key)
             else:
                 raise ValueError("Unsupported provider for LLM call")
             responses.append(response)
@@ -127,13 +127,13 @@ def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts
     raise RuntimeError(last_error or "LLM call failed")
 
 
-def _call_and_validate(prompt: str, provider: str) -> Dict[str, Any]:
+def _call_and_validate(prompt: str, provider: str, api_key: str | None = None) -> Dict[str, Any]:
     fix_prompt = cli_openai.JSON_FIX_PROMPT if provider == "openai" else cli_gemini.JSON_FIX_PROMPT
     attempts = 3
     raw = ""
     error_message = ""
     for _ in range(attempts):
-        raw = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1)
+        raw = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1, api_key=api_key)
         try:
             parsed = parse_json_response(raw)
             question = parse_question(parsed)
@@ -147,7 +147,7 @@ def _call_and_validate(prompt: str, provider: str) -> Dict[str, Any]:
     raise RuntimeError(error_message or "LLM JSON validation failed")
 
 
-def generate_question(session: Dict[str, Any], index: int) -> Dict[str, Any]:
+def generate_question(session: Dict[str, Any], index: int, api_key: str | None = None) -> Dict[str, Any]:
     start_round = session.get("start_round", 1)
     round_info, _round_num = round_for_index(index, start_round)
     persona = DEFAULT_PERSONA
@@ -163,4 +163,5 @@ def generate_question(session: Dict[str, Any], index: int) -> Dict[str, Any]:
         f"{cli_openai.QUESTION_PROMPT if session['provider'] == 'openai' else cli_gemini.QUESTION_PROMPT}\n\n"
         f"{build_question_prompt(session, round_info, persona, question_id)}"
     )
-    return _call_and_validate(prompt, session["provider"])
+    return _call_and_validate(prompt, session["provider"], api_key=api_key)
+
