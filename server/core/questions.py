@@ -9,23 +9,11 @@ from server.llm.schemas import Question
 
 ROUNDS: List[Dict[str, Any]] = [
     {
-        "name": "screening",
-        "label": "Round 1",
+        "name": "interview",
+        "label": "Interview",
         "count": 4,
-        "goal": "Establish baseline fit and core experience.",
-    },
-    {
-        "name": "deep_dive",
-        "label": "Round 2",
-        "count": 6,
-        "goal": "Explore depth, impact, and technical decision-making.",
-    },
-    {
-        "name": "challenge",
-        "label": "Round 3",
-        "count": 4,
-        "goal": "Stress-test claims and assess judgment under pressure.",
-    },
+        "goal": "Run a focused, realistic interview with four well-paced questions.",
+    }
 ]
 
 DEFAULT_PERSONA = "neutral"
