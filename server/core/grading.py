@@ -4,22 +4,16 @@ import json
 from typing import Any, Dict, List
 
 from server.core import state
-from server.llm import cli_gemini, cli_openai
+from server.llm import dispatch, prompts
 from server.llm.schemas import ReportSummary
 
 
-def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, api_key: str | None = None) -> Dict[str, Any]:
+def _call_llm_with_retries(prompt: str, cfg: dispatch.LLMConfig, fix_prompt: str) -> Dict[str, Any]:
     """Helper to call LLM and parse JSON, similar to analysis.py"""
     last_exc = None
     for _ in range(3):
         try:
-            if provider == "openai":
-                raw = cli_openai.call_openai(prompt, api_key=api_key)
-            elif provider == "gemini":
-                raw = cli_gemini.call_gemini(prompt, api_key=api_key)
-            else:
-                raise ValueError(f"Unknown provider: {provider}")
-            
+            raw = dispatch.call_llm(cfg, prompt)
             # Basic cleanup
             raw = raw.replace("```json", "").replace("```", "").strip()
             return json.loads(raw)
@@ -37,7 +31,7 @@ def generate_report(session_data: Dict[str, Any], api_key: str | None = None) ->
     """
     Generates a final report for the given session.
     """
-    provider = session_data.get("provider", "mock")
+    provider = dispatch.normalize_provider(session_data.get("provider", "mock"))
     if provider == "mock":
         return {
             "overall_score": 0.85,
@@ -92,16 +86,16 @@ def generate_report(session_data: Dict[str, Any], api_key: str | None = None) ->
     persona_json = json.dumps(persona_data, indent=2) if persona_data else "N/A"
     
     prompt = (
-        f"{cli_openai.REPORT_PROMPT if provider == 'openai' else cli_gemini.REPORT_PROMPT}\n\n"
+        f"{prompts.REPORT_PROMPT}\n\n"
         f"Job Spec:\n{job_spec}\n\n"
         f"Persona:\n{persona_json}\n\n"
         f"Interview Transcript:\n{transcript}\n"
     )
 
-    fix_prompt = cli_openai.JSON_FIX_PROMPT if provider == "openai" else cli_gemini.JSON_FIX_PROMPT
+    cfg = dispatch.config_from_session(session_data, api_key=api_key)
 
     try:
-        raw_data = _call_llm_with_retries(prompt, provider, fix_prompt, api_key=api_key)
+        raw_data = _call_llm_with_retries(prompt, cfg, prompts.JSON_FIX_PROMPT)
         # Validate against schema
         report = ReportSummary.model_validate(raw_data)
         return report.model_dump()

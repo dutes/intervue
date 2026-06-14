@@ -181,7 +181,7 @@ def parse_question(payload: Dict[str, Any]) -> Question:
     return Question.model_validate(payload)
 
 
-from server.llm import cli_gemini, cli_openai, mock
+from server.llm import dispatch, mock, prompts
 
 
 # Questions use a higher temperature than scoring/analysis so repeated sessions on the same CV
@@ -189,32 +189,13 @@ from server.llm import cli_gemini, cli_openai, mock
 QUESTION_TEMPERATURE = 0.6
 
 
-def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts: int = 3, api_key: str | None = None, temperature: float = 0.2) -> str:
-    responses = []
-    last_error: str | None = None
-    for _ in range(attempts):
-        try:
-            if provider == "openai":
-                response = cli_openai.call_openai(prompt, temperature=temperature, api_key=api_key)
-            elif provider == "gemini":
-                response = cli_gemini.call_gemini(prompt, temperature=temperature, api_key=api_key)
-            else:
-                raise ValueError("Unsupported provider for LLM call")
-            responses.append(response)
-            return response
-        except Exception as exc:  # noqa: BLE001
-            last_error = str(exc)
-            prompt = f"{fix_prompt}\n\nOriginal Error: {last_error}\n\nInvalid Output:\n{responses[-1] if responses else ''}"
-    raise RuntimeError(last_error or "LLM call failed")
-
-
-def _call_and_validate(prompt: str, provider: str, api_key: str | None = None, temperature: float = 0.2) -> Dict[str, Any]:
-    fix_prompt = cli_openai.JSON_FIX_PROMPT if provider == "openai" else cli_gemini.JSON_FIX_PROMPT
+def _call_and_validate(prompt: str, cfg: dispatch.LLMConfig, temperature: float = 0.2) -> Dict[str, Any]:
+    fix_prompt = prompts.JSON_FIX_PROMPT
     attempts = 3
     raw = ""
     error_message = ""
     for _ in range(attempts):
-        raw = _call_llm_with_retries(prompt, provider, fix_prompt, attempts=1, api_key=api_key, temperature=temperature)
+        raw = dispatch.call_llm(cfg, prompt, temperature=temperature)
         try:
             parsed = parse_json_response(raw)
             question = parse_question(parsed)
@@ -234,15 +215,16 @@ def generate_question(session: Dict[str, Any], index: int, api_key: str | None =
     persona = ROUND_PERSONA.get(round_info["name"], DEFAULT_PERSONA)
     question_id = f"q{index + 1}"
 
-    if session["provider"] == "mock":
+    if dispatch.normalize_provider(session.get("provider", "")) == "mock":
         question = mock.generate_question(session["session_id"], round_info["name"], persona, index)
         question["prompt"] = "MOCK: question generation"
         question["raw_response"] = json.dumps(question)
         return question
 
     prompt = (
-        f"{cli_openai.QUESTION_PROMPT if session['provider'] == 'openai' else cli_gemini.QUESTION_PROMPT}\n\n"
+        f"{prompts.QUESTION_PROMPT}\n\n"
         f"{build_question_prompt(session, round_info, persona, question_id, index)}"
     )
-    return _call_and_validate(prompt, session["provider"], api_key=api_key, temperature=QUESTION_TEMPERATURE)
+    cfg = dispatch.config_from_session(session, api_key=api_key)
+    return _call_and_validate(prompt, cfg, temperature=QUESTION_TEMPERATURE)
 

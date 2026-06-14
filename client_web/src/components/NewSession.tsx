@@ -9,13 +9,83 @@ const ROUND_OPTIONS = [
     { value: 3, label: "Round 3: Challenge", description: "Stress-test claims and assess judgment under pressure." },
 ];
 
+const PROVIDERS = [
+    { value: "openai", label: "OpenAI (GPT)", modelPlaceholder: "gpt-5.2 (default)", keyMode: "required" },
+    { value: "anthropic", label: "Anthropic (Claude)", modelPlaceholder: "claude-opus-4-8 (default)", keyMode: "required" },
+    { value: "gemini", label: "Google (Gemini)", modelPlaceholder: "gemini-1.5-flash (default)", keyMode: "required" },
+    { value: "local", label: "Local / Custom (OpenAI-compatible)", modelPlaceholder: "e.g. llama3.1, qwen2.5", keyMode: "optional" },
+    { value: "mock", label: "Mock (Testing)", modelPlaceholder: "not used", keyMode: "none" },
+] as const;
+
 export default function NewSession() {
     const navigate = useNavigate();
     const [jobSpec, setJobSpec] = useState("");
     const [cvText, setCvText] = useState("");
     const [provider, setProvider] = useState("openai");
     const [apiKey, setApiKey] = useState("");
+    const [model, setModel] = useState("");
+    const [baseUrl, setBaseUrl] = useState("");
+    const [models, setModels] = useState<string[]>([]);
+    const [useCustomModel, setUseCustomModel] = useState(false);
+    const [loadingModels, setLoadingModels] = useState(false);
+    const [modelsError, setModelsError] = useState<string | null>(null);
     const [startRound, setStartRound] = useState(1);
+
+    const providerInfo = PROVIDERS.find((p) => p.value === provider) ?? PROVIDERS[0];
+    const keyLabel =
+        providerInfo.keyMode === "none"
+            ? "API Key (not needed)"
+            : providerInfo.keyMode === "optional"
+            ? "API Key (optional)"
+            : "API Key (required)";
+
+    const handleProviderChange = (value: string) => {
+        setProvider(value);
+        // Model lists are provider-specific, so reset the picker when the provider changes.
+        setModels([]);
+        setModel("");
+        setUseCustomModel(false);
+        setModelsError(null);
+    };
+
+    const loadModels = async () => {
+        setLoadingModels(true);
+        setModelsError(null);
+        try {
+            const res = await fetch("http://127.0.0.1:8000/providers/models", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ provider, api_key: apiKey || undefined, base_url: baseUrl || undefined }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || "Failed to load models");
+            const list: string[] = data.models || [];
+            setModels(list);
+            setUseCustomModel(false);
+            if (list.length && !list.includes(model)) setModel(list[0]);
+            if (!list.length) setModelsError("No models returned for this provider.");
+        } catch (err: any) {
+            setModelsError(err.message);
+        } finally {
+            setLoadingModels(false);
+        }
+    };
+
+    const handleModelSelect = (value: string) => {
+        if (value === "__custom__") {
+            setUseCustomModel(true);
+            setModel("");
+        } else {
+            setUseCustomModel(false);
+            setModel(value);
+        }
+    };
+
+    const canLoadModels =
+        provider !== "mock" &&
+        !loadingModels &&
+        (providerInfo.keyMode === "required" ? !!apiKey : true) &&
+        (provider === "local" ? !!baseUrl : true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +126,8 @@ export default function NewSession() {
                     cv_text: cvText,
                     provider,
                     api_key: apiKey || undefined,
+                    model: model || undefined,
+                    base_url: baseUrl || undefined,
                     start_round: startRound
                 }),
             });
@@ -160,28 +232,93 @@ export default function NewSession() {
                         <div className="relative">
                             <select
                                 value={provider}
-                                onChange={(e) => setProvider(e.target.value)}
+                                onChange={(e) => handleProviderChange(e.target.value)}
                                 className="w-full appearance-none bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-indigo-500 outline-none"
                             >
-                                <option value="openai">OpenAI (GPT-5.2)</option>
-                                <option value="gemini">Google (Gemini Pro)</option>
-                                <option value="mock">Mock (Testing)</option>
+                                {PROVIDERS.map((p) => (
+                                    <option key={p.value} value={p.value}>{p.label}</option>
+                                ))}
                             </select>
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </div>
                         </div>
                     </div>
+
                     <div className="space-y-2">
-                        <label className="text-xs font-medium text-slate-400">API Key (Optional if env set)</label>
+                        <label className="text-xs font-medium text-slate-400">{keyLabel}</label>
                         <input
                             type="password"
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="sk-..."
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-indigo-500 outline-none"
+                            disabled={provider === "mock"}
+                            placeholder={provider === "anthropic" ? "sk-ant-..." : "sk-..."}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-indigo-500 outline-none disabled:opacity-50"
                         />
                     </div>
+
+                    {provider === "local" && (
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="text-xs font-medium text-slate-400">Base URL</label>
+                            <input
+                                type="text"
+                                value={baseUrl}
+                                onChange={(e) => setBaseUrl(e.target.value)}
+                                placeholder="http://localhost:11434/v1"
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-indigo-500 outline-none"
+                            />
+                            <p className="text-[11px] text-slate-500">Your OpenAI-compatible endpoint (Ollama, LM Studio, vLLM, etc.).</p>
+                        </div>
+                    )}
+
+                    {provider !== "mock" && (
+                        <div className="space-y-2 md:col-span-2">
+                            <label className="text-xs font-medium text-slate-400">Model</label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <select
+                                        value={useCustomModel ? "__custom__" : model}
+                                        onChange={(e) => handleModelSelect(e.target.value)}
+                                        className="w-full appearance-none bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                    >
+                                        {models.length === 0 && !useCustomModel && (
+                                            <option value="">{`Use default (${providerInfo.modelPlaceholder})`}</option>
+                                        )}
+                                        {models.map((m) => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                        <option value="__custom__">Custom…</option>
+                                    </select>
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={loadModels}
+                                    disabled={!canLoadModels}
+                                    className="whitespace-nowrap bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 px-3 py-2 rounded-lg text-sm transition-colors"
+                                    title={canLoadModels ? "Fetch available models" : "Enter your API key / base URL first"}
+                                >
+                                    {loadingModels ? "Loading…" : "Load models"}
+                                </button>
+                            </div>
+                            {useCustomModel && (
+                                <input
+                                    type="text"
+                                    value={model}
+                                    onChange={(e) => setModel(e.target.value)}
+                                    placeholder={providerInfo.modelPlaceholder}
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                />
+                            )}
+                            {modelsError ? (
+                                <p className="text-[11px] text-red-400">{modelsError}</p>
+                            ) : (
+                                <p className="text-[11px] text-slate-500">Click "Load models" to fetch your available models, or choose Custom… to type any ID. Leave on default to skip.</p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="pt-4 flex justify-end">
