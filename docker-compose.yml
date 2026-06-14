@@ -4,9 +4,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # If you set this here, it overrides the default. 
-      # You can also use a .env file in the same directory.
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # The OpenAI API key is supplied per-session by the user in the web UI,
+      # so it is intentionally not set here.
       - OPENAI_MODEL=gpt-5.2
     volumes:
       # Persist data (sessions, reports)

@@ -19,7 +19,7 @@ from server.core import analysis as analysis_core
 from server.core import storage as storage_core
 from server.core import coaching as coaching_core
 from server.core.state import SessionState, load_session_state
-from server.llm import cli_gemini, cli_openai
+from server.llm import dispatch
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -115,12 +115,20 @@ class StartRequest(BaseModel):
     cv_text: str = Field(min_length=10)
     provider: str
     api_key: Optional[str] = None
+    model: Optional[str] = None
+    base_url: Optional[str] = None
     start_round: int = Field(default=1, ge=1)
 
 
 class AnswerRequest(BaseModel):
     question_id: str
     answer_text: str = Field(min_length=1)
+
+
+class ModelsRequest(BaseModel):
+    provider: str
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
 
 
 class StartResponse(BaseModel):
@@ -147,6 +155,8 @@ def _get_session(session_id: str) -> SessionState:
         payload["cv_text"],
         payload["provider"],
         payload.get("start_round", 1),
+        model=payload.get("model"),
+        base_url=payload.get("base_url"),
     )
     state.session_id = payload["session_id"]
     state.created_at = payload["created_at"]
@@ -164,42 +174,55 @@ def _get_session(session_id: str) -> SessionState:
 
 
 def _normalize_provider(provider: str) -> str:
-    return provider.strip().lower()
+    return dispatch.normalize_provider(provider)
 
 
-
-def _verify_provider(provider: str, api_key: Optional[str]) -> None:
+def _verify_provider(provider: str, api_key: Optional[str], model: Optional[str] = None, base_url: Optional[str] = None) -> None:
     provider = _normalize_provider(provider)
-    if provider == "mock":
-        return
-    if provider == "openai":
-        if not (api_key or os.getenv("OPENAI_API_KEY")):
-            raise HTTPException(status_code=400, detail="OPENAI_API_KEY is not set")
-        cli_openai.test_connection(api_key=api_key)
-        return
-    if provider == "gemini":
-        if not (api_key or os.getenv("GEMINI_API_KEY")):
-            raise HTTPException(status_code=400, detail="GEMINI_API_KEY is not set")
-        cli_gemini.test_connection(api_key=api_key)
-        return
+    if provider not in dispatch.SUPPORTED_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Unsupported provider")
+    cfg = dispatch.LLMConfig(provider=provider, api_key=api_key, model=model, base_url=base_url)
+    dispatch.test_connection(cfg)
 
-    raise HTTPException(status_code=400, detail="Unsupported provider")
+
+@app.post("/providers/models")
+async def list_provider_models(request: ModelsRequest) -> Dict[str, Any]:
+    provider = _normalize_provider(request.provider)
+    if provider not in dispatch.SUPPORTED_PROVIDERS:
+        raise HTTPException(status_code=400, detail="Unsupported provider")
+    cfg = dispatch.LLMConfig(provider=provider, api_key=request.api_key, base_url=request.base_url)
+    try:
+        models = dispatch.list_models(cfg)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=f"Could not load models: {exc}") from exc
+    return {"models": models}
 
 
 @app.post("/sessions/start", response_model=StartResponse)
 async def start_session(request: StartRequest) -> StartResponse:
     provider = _normalize_provider(request.provider)
     try:
-        _verify_provider(provider, request.api_key)
+        _verify_provider(provider, request.api_key, request.model, request.base_url)
+    except HTTPException:
+        raise
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if request.start_round > len(question_core.ROUNDS):
         raise HTTPException(status_code=400, detail="Unsupported round selection")
 
-    session = SessionState(request.job_spec, request.cv_text, provider, request.start_round)
+    session = SessionState(
+        request.job_spec,
+        request.cv_text,
+        provider,
+        request.start_round,
+        model=request.model,
+        base_url=request.base_url,
+    )
 
-    rubric_result = rubric_core.generate_rubric(request.job_spec, request.cv_text, provider, api_key=request.api_key)
+    rubric_result = rubric_core.generate_rubric(
+        request.job_spec, request.cv_text, provider, api_key=request.api_key, model=request.model, base_url=request.base_url
+    )
     session.rubric = rubric_result.parsed
     session.logs.append(
         {
@@ -213,7 +236,7 @@ async def start_session(request: StartRequest) -> StartResponse:
 
     # 1. Generate Persona
     try:
-        persona = analysis_core.generate_persona(request.job_spec, provider, api_key=request.api_key)
+        persona = analysis_core.generate_persona(request.job_spec, provider, api_key=request.api_key, model=request.model, base_url=request.base_url)
         session.persona = persona
         session.logs.append(
             {
@@ -229,7 +252,7 @@ async def start_session(request: StartRequest) -> StartResponse:
     # 2. Analyze CV (requires persona)
     if session.persona:
         try:
-            cv_analysis = analysis_core.analyze_cv(request.cv_text, request.job_spec, session.persona, provider, api_key=request.api_key)
+            cv_analysis = analysis_core.analyze_cv(request.cv_text, request.job_spec, session.persona, provider, api_key=request.api_key, model=request.model, base_url=request.base_url)
             session.cv_analysis = cv_analysis
             session.logs.append(
                 {
