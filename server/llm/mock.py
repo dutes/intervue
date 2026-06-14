@@ -59,11 +59,14 @@ def generate_question(session_id: str, round_name: str, persona: str, index: int
     }
     round_templates = templates.get(round_name, templates["screening"])
     prompt = round_templates[index % len(round_templates)]
+    competency = MOCK_COMPETENCIES[index % len(MOCK_COMPETENCIES)][0]
     return {
         "question_id": f"q{index+1}",
         "text": f"({persona.title()}) {prompt}",
         "round": round_name,
         "persona": persona,
+        "competency": competency,
+        "anchor": "a recent project from the CV",
     }
 
 

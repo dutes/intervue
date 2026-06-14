@@ -27,21 +27,30 @@ Rules:
 """
 
 QUESTION_PROMPT = """
-You are an interviewer generating a single interview question. Return STRICT JSON only.
+You are an interviewer generating ONE pointed interview question. Return STRICT JSON only.
 Schema:
 {
   "question_id": "string",
   "text": "string",
   "round": "string",
-  "persona": "string"
+  "persona": "string",
+  "anchor": "string",
+  "competency": "string"
 }
 Rules:
-- Make the question specific to job spec + CV + rubric
-- Use the persona style provided
-- Avoid repeating topics or phrasing from previously asked questions
-- Keep it natural and conversational, like a real interview
-- Ask one focused question (avoid multi-part checklists)
-- Do not include any extra keys
+- "anchor" MUST quote a specific phrase, project, technology, or number from the CV, or a
+  specific requirement from the job spec, that this question targets.
+- "competency" MUST be the name of the target competency provided below.
+- If a previous answer was vague, lacked metrics, or contradicted the CV, ask a follow-up that
+  drills into that specific gap rather than moving to a new topic.
+- Reference concrete details from the CV or job spec. NEVER ask a question that could be asked of
+  any candidate for any job.
+- BANNED phrasings: "tell me about a time", "what is your greatest strength/weakness",
+  "where do you see yourself", "walk me through your background".
+- Use the persona style provided. Keep it natural and conversational.
+- Ask one focused question (avoid multi-part checklists).
+- Do not repeat topics or phrasing from previously asked questions.
+- Do not include any extra keys.
 """
 
 SCORE_PROMPT = """
