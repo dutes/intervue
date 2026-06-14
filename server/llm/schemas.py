@@ -27,6 +27,10 @@ class Question(BaseModel):
     text: str
     round: str
     persona: str
+    # The specific CV claim or job-spec requirement this question targets.
+    anchor: str = ""
+    # The rubric competency this question is probing.
+    competency: str = ""
 
 
 class EvidenceFlags(BaseModel):

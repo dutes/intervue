@@ -7,6 +7,8 @@ interface Question {
     text: string;
     round: string;
     persona: string;
+    anchor?: string;
+    competency?: string;
 }
 
 interface Session {
@@ -246,6 +248,20 @@ export default function Interview() {
                 ) : (
                     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                         <h3 className="text-2xl md:text-3xl font-medium text-slate-100 leading-relaxed">{currentQuestion?.text}</h3>
+                        {(currentQuestion?.competency || currentQuestion?.anchor) && (
+                            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/60">
+                                {currentQuestion?.competency && (
+                                    <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                                        {currentQuestion.competency}
+                                    </span>
+                                )}
+                                {currentQuestion?.anchor && (
+                                    <span className="text-xs text-slate-500 italic">
+                                        Probing: “{currentQuestion.anchor}”
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -263,13 +263,15 @@ async def next_question(session_id: str) -> Dict[str, str]:
 
     api_key = SESSION_API_KEYS.get(session_id)
     question = question_core.generate_question(session.to_dict(), index, api_key=api_key)
-    session.questions.append({k: question[k] for k in ["question_id", "text", "round", "persona"]})
+    question_fields = ["question_id", "text", "round", "persona", "anchor", "competency"]
+    parsed_question = {k: question.get(k, "") for k in question_fields}
+    session.questions.append(parsed_question)
     session.logs.append(
         {
             "type": "question",
             "prompt": question.get("prompt"),
             "raw_response": question.get("raw_response"),
-            "parsed": {k: question[k] for k in ["question_id", "text", "round", "persona"]},
+            "parsed": parsed_question,
             "timestamp": time.time(),
         }
     )
@@ -280,6 +282,8 @@ async def next_question(session_id: str) -> Dict[str, str]:
         "persona": question["persona"],
         "round": question["round"],
         "text": question["text"],
+        "anchor": question.get("anchor", ""),
+        "competency": question.get("competency", ""),
     }
 
 
