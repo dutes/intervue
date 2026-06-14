@@ -3,22 +3,17 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, Tuple
 
-from server.llm import cli_gemini, cli_openai, mock
+from server.llm import dispatch, prompts
 from server.llm.schemas import Persona, CVAnalysis
 from server.core.json_utils import parse_json_response
 
 
-def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts: int = 3, api_key: str | None = None) -> str:
+def _call_llm_with_retries(prompt: str, cfg: dispatch.LLMConfig, fix_prompt: str, attempts: int = 3) -> str:
     responses = []
     last_error: str | None = None
     for _ in range(attempts):
         try:
-            if provider == "openai":
-                response = cli_openai.call_openai(prompt, api_key=api_key)
-            elif provider == "gemini":
-                response = cli_gemini.call_gemini(prompt, api_key=api_key)
-            else:
-                raise ValueError("Unsupported provider for LLM call")
+            response = dispatch.call_llm(cfg, prompt)
             responses.append(response)
             return response
         except Exception as exc:  # noqa: BLE001
@@ -27,8 +22,14 @@ def _call_llm_with_retries(prompt: str, provider: str, fix_prompt: str, attempts
     raise RuntimeError(last_error or "LLM call failed")
 
 
-def generate_persona(job_spec: str, provider: str, api_key: str | None = None) -> Dict[str, Any]:
-    if provider == "mock":
+def generate_persona(
+    job_spec: str,
+    provider: str,
+    api_key: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
+) -> Dict[str, Any]:
+    if dispatch.normalize_provider(provider) == "mock":
         return {
             "name": "Alex Mercer",
             "role": "Senior Engineering Manager",
@@ -37,14 +38,13 @@ def generate_persona(job_spec: str, provider: str, api_key: str | None = None) -
         }
 
     prompt = (
-        f"{cli_openai.PERSONA_PROMPT if provider == 'openai' else cli_gemini.PERSONA_PROMPT}\n\n"
+        f"{prompts.PERSONA_PROMPT}\n\n"
         f"Job Spec:\n{job_spec}\n"
     )
-    
-    fix_prompt = cli_openai.JSON_FIX_PROMPT if provider == "openai" else cli_gemini.JSON_FIX_PROMPT
-    
+    cfg = dispatch.LLMConfig(provider=dispatch.normalize_provider(provider), api_key=api_key, model=model, base_url=base_url)
+
     try:
-        raw = _call_llm_with_retries(prompt, provider, fix_prompt, api_key=api_key)
+        raw = _call_llm_with_retries(prompt, cfg, prompts.JSON_FIX_PROMPT)
         parsed = parse_json_response(raw)
         persona = Persona.model_validate(parsed)
         return persona.model_dump()
@@ -52,8 +52,16 @@ def generate_persona(job_spec: str, provider: str, api_key: str | None = None) -
         raise RuntimeError(f"Failed to generate persona: {exc}") from exc
 
 
-def analyze_cv(cv_text: str, job_spec: str, persona: Dict[str, Any], provider: str, api_key: str | None = None) -> Dict[str, Any]:
-    if provider == "mock":
+def analyze_cv(
+    cv_text: str,
+    job_spec: str,
+    persona: Dict[str, Any],
+    provider: str,
+    api_key: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
+) -> Dict[str, Any]:
+    if dispatch.normalize_provider(provider) == "mock":
         return {
             "summary": "Strong candidate with relevant experience.",
             "strengths": ["Python", "FastAPI"],
@@ -63,16 +71,15 @@ def analyze_cv(cv_text: str, job_spec: str, persona: Dict[str, Any], provider: s
 
     persona_json = json.dumps(persona, indent=2)
     prompt = (
-        f"{cli_openai.CV_ANALYSIS_PROMPT if provider == 'openai' else cli_gemini.CV_ANALYSIS_PROMPT}\n\n"
+        f"{prompts.CV_ANALYSIS_PROMPT}\n\n"
         f"Persona:\n{persona_json}\n\n"
         f"Job Spec:\n{job_spec}\n\n"
         f"CV:\n{cv_text}\n"
     )
-
-    fix_prompt = cli_openai.JSON_FIX_PROMPT if provider == "openai" else cli_gemini.JSON_FIX_PROMPT
+    cfg = dispatch.LLMConfig(provider=dispatch.normalize_provider(provider), api_key=api_key, model=model, base_url=base_url)
 
     try:
-        raw = _call_llm_with_retries(prompt, provider, fix_prompt, api_key=api_key)
+        raw = _call_llm_with_retries(prompt, cfg, prompts.JSON_FIX_PROMPT)
         parsed = parse_json_response(raw)
         analysis = CVAnalysis.model_validate(parsed)
         return analysis.model_dump()
