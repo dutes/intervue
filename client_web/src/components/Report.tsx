@@ -67,6 +67,14 @@ function panelInsight(pa: Record<string, number>): string | null {
     return "Your performance held steady across friendly and hostile interviewers — a sign of composure under pressure.";
 }
 
+// Color the hiring verdict pill. "No Hire" must be checked before "Hire".
+function verdictClass(nextStep: string): string {
+    const s = (nextStep || "").toLowerCase();
+    if (s.includes("no")) return "text-danger border-danger/30 bg-danger/10";
+    if (s.includes("hire")) return "text-success border-success/30 bg-success/10";
+    return "text-warn border-warn/30 bg-warn/10";
+}
+
 export default function InterviewReport() {
     const { id } = useParams<{ id: string }>();
     const [report, setReport] = useState<ReportData | null>(null);
@@ -232,6 +240,28 @@ export default function InterviewReport() {
                         {panelInsight(report.persona_averages || {})}
                     </div>
                 )}
+
+                {report.persona_feedback && report.persona_feedback.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-slate-800">
+                        <h4 className="text-sm font-semibold text-slate-200 mb-1">Hiring verdict</h4>
+                        <p className="text-xs text-slate-500 mb-3">The interviewer's recommendation and any remaining concerns.</p>
+                        <div className="grid gap-3">
+                            {report.persona_feedback.map((feedback, idx) => (
+                                <div key={idx} className="border border-slate-800 rounded-xl p-4 bg-slate-950/40">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded">{feedback.persona}</span>
+                                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${verdictClass(feedback.next_step)}`}>{feedback.next_step}</span>
+                                    </div>
+                                    {feedback.concerns.length > 0 && (
+                                        <ul className="text-sm text-slate-300 space-y-1 mt-3">
+                                            {feedback.concerns.map((c, i) => <li key={i}>• {c}</li>)}
+                                        </ul>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
@@ -246,43 +276,6 @@ export default function InterviewReport() {
                                 <p className="text-xs text-indigo-300">{item.focus}</p>
                             </div>
                             <p className="text-sm text-slate-400 mt-2">{item.task}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="space-y-6">
-                <h3 className="text-xl font-bold text-white">Interviewer Feedback</h3>
-                <div className="grid gap-6">
-                    {report.persona_feedback.map((feedback, idx) => (
-                        <div key={idx} className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded">
-                                        {feedback.persona}
-                                    </span>
-                                    <div className="text-slate-400 text-sm mt-2">{feedback.next_step}</div>
-                                </div>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-6 mt-4">
-                                <div>
-                                    <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Positives</h4>
-                                    <ul className="space-y-1">
-                                        {feedback.positives.map((p, i) => (
-                                            <li key={i} className="text-sm text-slate-300">• {p}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <div>
-                                    <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Concerns</h4>
-                                    <ul className="space-y-1">
-                                        {feedback.concerns.map((c, i) => (
-                                            <li key={i} className="text-sm text-slate-300">• {c}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
                         </div>
                     ))}
                 </div>
