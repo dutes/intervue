@@ -3,6 +3,16 @@
 @theme {
   --font-sans: "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
   --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+
+  /* Brand accent (maps to the indigo the app already uses) so it can be themed in one place. */
+  --color-brand-400: #818cf8;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+
+  /* Semantic score colors, shared by the score text and the score rings. */
+  --color-success: #34d399;
+  --color-warn: #fbbf24;
+  --color-danger: #f87171;
 }
 
 :root {
