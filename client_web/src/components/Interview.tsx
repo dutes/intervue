@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Send, User, Bot, Mic, Square, Maximize2, Minimize2 } from "lucide-react";
+import ScoreRing from "./ScoreRing";
 
 interface Question {
     question_id: string;
@@ -307,8 +308,13 @@ export default function Interview() {
 
             {latestFeedback && (
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-                    <h3 className="text-white font-semibold mb-3">Per-Answer Coaching</h3>
-                    <p className="text-sm text-slate-300 mb-2">Average score: <span className="text-indigo-300">{latestFeedback.average_overall_score}</span></p>
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                        <div>
+                            <h3 className="text-white font-semibold">Per-Answer Coaching</h3>
+                            <p className="text-xs text-slate-500 mt-0.5 uppercase tracking-wider">Average score</p>
+                        </div>
+                        <ScoreRing value={latestFeedback.average_overall_score} caption="/ 100" />
+                    </div>
                     <p className="text-sm text-slate-300 mb-2">STAR feedback: <span className="text-slate-200">{latestFeedback.star_feedback.summary}</span></p>
                     <p className="text-xs text-slate-500 mb-4">
                         STAR complete: {String(latestFeedback.star_feedback.star_complete)} | Metrics: {String(latestFeedback.star_feedback.metrics_present)} | Specificity: {latestFeedback.star_feedback.specificity}

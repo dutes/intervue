@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { CheckCircle, AlertCircle, BarChart2, Award, Briefcase, Download, TrendingUp, CalendarDays } from "lucide-react";
+import ScoreRing from "./ScoreRing";
 
 interface PersonaFeedback {
     persona: string;
@@ -77,14 +78,12 @@ export default function InterviewReport() {
         <div className="max-w-4xl mx-auto pb-20 space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-end mb-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Interview Report</h1>
+                    <h1 className="font-display text-4xl font-bold tracking-tight text-white mb-2">Interview Report</h1>
                     <p className="text-slate-400">Session ID: <span className="font-mono text-slate-500">{id?.slice(0, 8)}</span></p>
                 </div>
-                <div className="text-right">
-                    <div className="text-sm text-slate-400 uppercase tracking-wider font-medium mb-1">Overall Score</div>
-                    <div className={`text-5xl font-bold ${report.overall_score >= 80 ? "text-emerald-400" : report.overall_score >= 60 ? "text-indigo-400" : "text-amber-400"}`}>
-                        {report.overall_score}
-                    </div>
+                <div className="flex flex-col items-center">
+                    <div className="text-sm text-slate-400 uppercase tracking-wider font-medium mb-2">Overall Score</div>
+                    <ScoreRing value={report.overall_score} size={96} stroke={8} caption="/ 100" />
                 </div>
             </div>
 
