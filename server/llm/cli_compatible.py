@@ -8,8 +8,12 @@ most local servers don't require one.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from typing import Any, Dict
+
+# Env-tunable generation timeout; local models can be slow. Listing models stays short.
+REQUEST_TIMEOUT = int(os.getenv("LLM_REQUEST_TIMEOUT", "120"))
 
 
 def _endpoint(base_url: str) -> str:
@@ -34,7 +38,7 @@ def _run_curl(url: str, payload: Dict[str, Any], api_key: str | None = None) -> 
         "-d",
         json.dumps(payload),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=REQUEST_TIMEOUT, check=False)
     if result.returncode != 0:
         raise RuntimeError(f"Local LLM curl error: {result.stderr.strip()}")
     return result.stdout

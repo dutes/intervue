@@ -19,6 +19,9 @@ from server.llm.prompts import (  # noqa: F401
 
 OPENAI_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5.2")
+# Generation can take a while for large prompts / slower (e.g. reasoning) models, so allow a
+# generous, env-tunable timeout. Listing models stays fast/short.
+REQUEST_TIMEOUT = int(os.getenv("LLM_REQUEST_TIMEOUT", "120"))
 
 
 def _run_curl(payload: Dict[str, Any], api_key: str | None = None) -> str:
@@ -42,7 +45,7 @@ def _run_curl(payload: Dict[str, Any], api_key: str | None = None) -> str:
         "-d",
         json.dumps(payload),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=REQUEST_TIMEOUT, check=False)
     if result.returncode != 0:
         raise RuntimeError(f"OpenAI curl error: {result.stderr.strip()}")
     return result.stdout
