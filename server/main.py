@@ -275,13 +275,14 @@ async def start_session(request: StartRequest) -> StartResponse:
 
 
 @app.post("/sessions/{session_id}/next_question")
-async def next_question(session_id: str) -> Dict[str, str]:
+async def next_question(session_id: str) -> Dict[str, Any]:
     session = _get_session(session_id)
     if session.status != "active":
         raise HTTPException(status_code=400, detail="Session is not active")
 
     index = len(session.questions)
-    if index >= question_core.total_questions(session.start_round):
+    total = question_core.total_questions(session.start_round)
+    if index >= total:
         raise HTTPException(status_code=400, detail="Interview already complete")
 
     api_key = SESSION_API_KEYS.get(session_id)
@@ -307,6 +308,8 @@ async def next_question(session_id: str) -> Dict[str, str]:
         "text": question["text"],
         "anchor": question.get("anchor", ""),
         "competency": question.get("competency", ""),
+        "number": index + 1,
+        "total": total,
     }
 
 

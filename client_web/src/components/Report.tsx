@@ -74,6 +74,7 @@ export default function InterviewReport() {
     const [error, setError] = useState<string | null>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [openQuestions, setOpenQuestions] = useState<Record<string, boolean>>({});
+    const [transcriptOpen, setTranscriptOpen] = useState(false);
 
     const toggleQuestion = (qid: string) =>
         setOpenQuestions((prev) => ({ ...prev, [qid]: !prev[qid] }));
@@ -147,76 +148,6 @@ export default function InterviewReport() {
                     </ul>
                 </div>
             </div>
-
-            {report.transcript && report.transcript.length > 0 && (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-                    <h3 className="text-white font-medium mb-1 flex items-center gap-2">
-                        <MessageSquareText className="w-5 h-5 text-indigo-400" /> Interview Transcript
-                    </h3>
-                    <p className="text-xs text-slate-500 mb-4">Your answers with per-question feedback and a suggested rewrite.</p>
-                    <div className="space-y-3">
-                        {report.transcript.map((t, idx) => {
-                            const open = !!openQuestions[t.question_id];
-                            const tier = t.score != null ? scoreTier(t.score) : null;
-                            return (
-                                <div key={t.question_id} className="border border-slate-800 rounded-xl bg-slate-950/40 overflow-hidden break-inside-avoid">
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleQuestion(t.question_id)}
-                                        className="w-full flex items-center gap-3 text-left px-4 py-3 hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-                                    >
-                                        <span className="text-xs font-mono text-slate-500 w-7 shrink-0">Q{idx + 1}</span>
-                                        <span className="flex-1 text-sm text-slate-200">{t.question}</span>
-                                        {t.score != null && tier && (
-                                            <span className={`text-sm font-semibold ${scoreTextClass[tier]}`}>{Math.round(t.score)}</span>
-                                        )}
-                                        <ChevronDown className={`print:hidden w-4 h-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
-                                    </button>
-                                    <div className={`${open ? "block" : "hidden"} print:block px-4 pb-4 pt-4 space-y-4 border-t border-slate-800/60`}>
-                                        {(t.competency || t.anchor) && (
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                {t.competency && (
-                                                    <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">{t.competency}</span>
-                                                )}
-                                                {t.anchor && <span className="text-xs text-slate-500 italic">Probing: “{t.anchor}”</span>}
-                                            </div>
-                                        )}
-                                        <div>
-                                            <p className="text-xs uppercase text-slate-500 mb-1">Your answer</p>
-                                            <p className="text-sm text-slate-300 whitespace-pre-wrap">{t.answer}</p>
-                                        </div>
-                                        {t.star_summary && <p className="text-xs text-slate-400">STAR: {t.star_summary}</p>}
-                                        <div className="grid md:grid-cols-2 gap-4">
-                                            {t.strengths.length > 0 && (
-                                                <div>
-                                                    <p className="text-xs uppercase text-emerald-400 mb-1">Strengths</p>
-                                                    <ul className="text-sm text-slate-300 space-y-1">
-                                                        {t.strengths.map((s, i) => <li key={i}>• {s}</li>)}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                            {t.improvements.length > 0 && (
-                                                <div>
-                                                    <p className="text-xs uppercase text-amber-400 mb-1">Improve</p>
-                                                    <ul className="text-sm text-slate-300 space-y-1">
-                                                        {t.improvements.map((s, i) => <li key={i}>• {s}</li>)}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {t.rewrite && (
-                                            <div>
-                                                <p className="text-xs uppercase text-indigo-400 mb-1">Suggested rewrite</p>
-                                                <pre className="text-xs whitespace-pre-wrap font-sans bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{t.rewrite}</pre>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
 
             <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
@@ -356,6 +287,86 @@ export default function InterviewReport() {
                     ))}
                 </div>
             </div>
+
+            {report.transcript && report.transcript.length > 0 && (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setTranscriptOpen((o) => !o)}
+                        className="w-full flex items-center justify-between gap-3 px-6 py-4 text-left hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                    >
+                        <span className="flex items-center gap-2 text-white font-medium">
+                            <MessageSquareText className="w-5 h-5 text-indigo-400" /> Interview Transcript
+                            <span className="text-xs text-slate-500 font-normal">({report.transcript.length} questions)</span>
+                        </span>
+                        <ChevronDown className={`print:hidden w-5 h-5 text-slate-500 transition-transform ${transcriptOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    <div className={`${transcriptOpen ? "block" : "hidden"} print:block px-6 pb-6`}>
+                        <p className="text-xs text-slate-500 mb-4">Your answers with per-question feedback and a suggested rewrite.</p>
+                        <div className="space-y-3">
+                            {report.transcript.map((t, idx) => {
+                                const open = !!openQuestions[t.question_id];
+                                const tier = t.score != null ? scoreTier(t.score) : null;
+                                return (
+                                    <div key={t.question_id} className="border border-slate-800 rounded-xl bg-slate-950/40 overflow-hidden break-inside-avoid">
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleQuestion(t.question_id)}
+                                            className="w-full flex items-center gap-3 text-left px-4 py-3 hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                                        >
+                                            <span className="text-xs font-mono text-slate-500 w-7 shrink-0">Q{idx + 1}</span>
+                                            <span className="flex-1 text-sm text-slate-200">{t.question}</span>
+                                            {t.score != null && tier && (
+                                                <span className={`text-sm font-semibold ${scoreTextClass[tier]}`}>{Math.round(t.score)}</span>
+                                            )}
+                                            <ChevronDown className={`print:hidden w-4 h-4 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
+                                        </button>
+                                        <div className={`${open ? "block" : "hidden"} print:block px-4 pb-4 pt-4 space-y-4 border-t border-slate-800/60`}>
+                                            {(t.competency || t.anchor) && (
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    {t.competency && (
+                                                        <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">{t.competency}</span>
+                                                    )}
+                                                    {t.anchor && <span className="text-xs text-slate-500 italic">Probing: “{t.anchor}”</span>}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="text-xs uppercase text-slate-500 mb-1">Your answer</p>
+                                                <p className="text-sm text-slate-300 whitespace-pre-wrap">{t.answer}</p>
+                                            </div>
+                                            {t.star_summary && <p className="text-xs text-slate-400">STAR: {t.star_summary}</p>}
+                                            <div className="grid md:grid-cols-2 gap-4">
+                                                {t.strengths.length > 0 && (
+                                                    <div>
+                                                        <p className="text-xs uppercase text-emerald-400 mb-1">Strengths</p>
+                                                        <ul className="text-sm text-slate-300 space-y-1">
+                                                            {t.strengths.map((s, i) => <li key={i}>• {s}</li>)}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                                {t.improvements.length > 0 && (
+                                                    <div>
+                                                        <p className="text-xs uppercase text-amber-400 mb-1">Improve</p>
+                                                        <ul className="text-sm text-slate-300 space-y-1">
+                                                            {t.improvements.map((s, i) => <li key={i}>• {s}</li>)}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {t.rewrite && (
+                                                <div>
+                                                    <p className="text-xs uppercase text-indigo-400 mb-1">Suggested rewrite</p>
+                                                    <pre className="text-xs whitespace-pre-wrap font-sans bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{t.rewrite}</pre>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="print:hidden flex justify-between pt-8 border-t border-slate-800">
                 <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
