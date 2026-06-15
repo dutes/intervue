@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { CheckCircle, AlertCircle, BarChart2, Award, Briefcase, Download, TrendingUp, CalendarDays, Smile, Scale, Flame, Users } from "lucide-react";
 import ScoreRing from "./ScoreRing";
 import { scoreTier, scoreTextClass, scoreStroke } from "../lib/score";
+import { apiUrl } from "../lib/api";
 
 interface PersonaFeedback {
     persona: string;
@@ -65,7 +66,7 @@ export default function InterviewReport() {
 
     const fetchReport = async () => {
         try {
-            const res = await fetch(`http://127.0.0.1:8000/sessions/${id}/report`);
+            const res = await fetch(apiUrl(`/sessions/${id}/report`));
             if (!res.ok) throw new Error("Failed to load report");
             const data = await res.json();
             setReport(data);
@@ -82,7 +83,7 @@ export default function InterviewReport() {
 
     const getChartUrl = (filename: string) => {
         const basename = filename.split(/[\\/]/).pop();
-        return `http://127.0.0.1:8000/reports/${id}/${basename}`;
+        return apiUrl(`/reports/${id}/${basename}`);
     };
 
     return (

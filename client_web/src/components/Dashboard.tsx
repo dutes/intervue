@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Play, Calendar, CheckCircle, ArrowRight } from "lucide-react";
 import ScoreRing from "./ScoreRing";
+import { apiUrl } from "../lib/api";
 
 interface Session {
     session_id: string;
@@ -17,7 +18,7 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch("http://127.0.0.1:8000/sessions")
+        fetch(apiUrl("/sessions"))
             .then((res) => res.json())
             .then((data) => {
                 setSessions(data);
