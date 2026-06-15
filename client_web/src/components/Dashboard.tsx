@@ -40,12 +40,12 @@ export default function Dashboard() {
         <div className="space-y-8">
             <header className="flex items-end justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">My Interviews</h1>
+                    <h1 className="font-display text-4xl font-bold tracking-tight text-white mb-2">My Interviews</h1>
                     <p className="text-slate-400">Track your progress and review past performance.</p>
                 </div>
                 <Link
                     to="/new"
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                    className="bg-indigo-600 hover:bg-indigo-500 active:scale-[.98] text-white px-5 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 >
                     <Play className="w-4 h-4 fill-current" />
                     Start Practice
@@ -76,8 +76,8 @@ export default function Dashboard() {
                                         {session.status === 'completed' ? <CheckCircle className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-white text-lg group-hover:text-indigo-400 transition-colors">
-                                            {session.job_spec || "Untitled Position"}
+                                        <h3 className="font-semibold text-white text-lg group-hover:text-indigo-400 transition-colors line-clamp-1">
+                                            {session.job_spec?.split("\n").map((l) => l.trim()).find(Boolean) || "Untitled Position"}
                                         </h3>
                                         <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
                                             <span className="flex items-center gap-1.5">
