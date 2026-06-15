@@ -157,6 +157,42 @@ def generate_persona_feedback(session: Dict[str, Any], strengths: List[str], wea
 from server.core import grading
 
 
+def build_transcript(session: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Assemble the per-question record (question, the answer, score and coaching) from data
+    already stored on the session — no extra LLM calls."""
+    answers_by_id = {a.get("question_id"): a for a in session.get("answers", [])}
+    coaching_by_id: Dict[str, Dict[str, Any]] = {}
+    for log in session.get("logs", []):
+        if log.get("type") == "coaching":
+            coaching_by_id[log.get("question_id")] = log.get("parsed", {})
+
+    transcript: List[Dict[str, Any]] = []
+    for question in session.get("questions", []):
+        qid = question.get("question_id")
+        answer = answers_by_id.get(qid)
+        if not answer:
+            continue  # only include questions the candidate actually answered
+        parsed = coaching_by_id.get(qid, {})
+        coaching = parsed.get("coaching", {}) or {}
+        star = parsed.get("star_feedback", {}) or {}
+        transcript.append(
+            {
+                "question_id": qid,
+                "question": question.get("text", ""),
+                "round": question.get("round", ""),
+                "competency": question.get("competency", ""),
+                "anchor": question.get("anchor", ""),
+                "answer": answer.get("answer_text", ""),
+                "score": parsed.get("average_overall"),
+                "star_summary": star.get("summary", ""),
+                "strengths": coaching.get("strengths", []),
+                "improvements": coaching.get("improvements", []),
+                "rewrite": coaching.get("rewrite", ""),
+            }
+        )
+    return transcript
+
+
 def build_report(session: Dict[str, Any], api_key: str | None = None) -> Tuple[Dict[str, Any], Dict[str, str]]:
     scores = session.get("scores", [])
     overall_scores = compute_question_overall_scores(scores)
@@ -191,6 +227,7 @@ def build_report(session: Dict[str, Any], api_key: str | None = None) -> Tuple[D
         "session_id": session["session_id"],
         "overall_score": overall_score,
         "competency_averages": competency_avgs,
+        "transcript": build_transcript(session),
         "strengths": strengths,
         "weaknesses": weaknesses,
         "overall_scores": overall_scores,
