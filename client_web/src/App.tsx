@@ -9,10 +9,10 @@ import InterviewReport from "./components/Report";
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
-        <nav className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-xl sticky top-0 z-50">
+      <div className="app-bg min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
+        <nav className="relative z-10 border-b border-slate-800 bg-slate-950/50 backdrop-blur-xl sticky top-0">
           <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2 font-bold text-xl tracking-tight text-indigo-400 hover:text-indigo-300 transition-colors">
+            <Link to="/" className="font-display flex items-center gap-2 font-bold text-xl tracking-tight text-indigo-400 hover:text-indigo-300 transition-colors">
               <Terminal className="w-6 h-6" />
               <span>Intervue</span>
             </Link>
@@ -29,7 +29,7 @@ function App() {
           </div>
         </nav>
 
-        <main className="max-w-5xl mx-auto px-6 py-12">
+        <main className="relative z-10 max-w-5xl mx-auto px-6 py-12">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/new" element={<NewSession />} />
