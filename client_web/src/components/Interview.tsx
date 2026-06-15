@@ -247,7 +247,7 @@ export default function Interview() {
                     </div>
                 ) : (
                     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-                        <h3 className="text-2xl md:text-3xl font-medium text-slate-100 leading-relaxed">{currentQuestion?.text}</h3>
+                        <h3 className="font-display text-2xl md:text-3xl font-medium tracking-tight text-slate-100 leading-relaxed">{currentQuestion?.text}</h3>
                         {(currentQuestion?.competency || currentQuestion?.anchor) && (
                             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/60">
                                 {currentQuestion?.competency && (
@@ -287,7 +287,8 @@ export default function Interview() {
                         <button
                             type="button"
                             onClick={toggleRecording}
-                            className={`p-2.5 rounded-xl transition-all ${isRecording ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 animate-pulse" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
+                            aria-label={isRecording ? "Stop voice input" : "Start voice input"}
+                            className={`p-2.5 rounded-xl transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${isRecording ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 animate-pulse" : "text-slate-500 hover:text-slate-300 hover:bg-white/5"}`}
                             title={isRecording ? "Stop Recording" : "Start Voice Input"}
                         >
                             {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
@@ -295,7 +296,8 @@ export default function Interview() {
                         <button
                             type="submit"
                             disabled={!answer.trim() || submitting || loading}
-                            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white p-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
+                            aria-label="Submit answer"
+                            className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 text-white p-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                         >
                             <Send className="w-5 h-5" />
                         </button>
