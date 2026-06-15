@@ -358,6 +358,9 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
         answer_text=request.answer_text,
         competency_scores=competency_scores,
         star_feedback=star_feedback,
+        session=session.to_dict(),
+        api_key=api_key,
+        score_payloads=score_payloads,
     )
     avg_overall = round(sum(p["overall_score"] for p in score_payloads) / len(score_payloads), 2)
 

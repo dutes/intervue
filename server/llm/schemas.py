@@ -76,6 +76,15 @@ class ReportSummary(BaseModel):
     persona_feedback: List[PersonaFeedback]
 
 
+class CoachingFeedback(BaseModel):
+    # Tolerate extra keys the model may add (e.g. echoing the question).
+    model_config = ConfigDict(extra="ignore")
+
+    strengths: List[str]
+    improvements: List[str]
+    rewrite: str
+
+
 class Persona(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
