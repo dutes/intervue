@@ -10,6 +10,8 @@ ANTHROPIC_VERSION = "2023-06-01"
 # Default to the latest, most capable Claude model. Users can override per session.
 DEFAULT_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-8")
 MAX_TOKENS = int(os.getenv("ANTHROPIC_MAX_TOKENS", "4096"))
+# Env-tunable generation timeout (large prompts / slower models). Listing models stays short.
+REQUEST_TIMEOUT = int(os.getenv("LLM_REQUEST_TIMEOUT", "120"))
 
 # Steer Claude toward returning bare JSON (it has no dedicated json_object mode).
 SYSTEM_PROMPT = "You output only valid JSON with no surrounding prose, markdown, or code fences."
@@ -35,7 +37,7 @@ def _run_curl(payload: Dict[str, Any], api_key: str | None = None) -> str:
         "-d",
         json.dumps(payload),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=False)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=REQUEST_TIMEOUT, check=False)
     if result.returncode != 0:
         raise RuntimeError(f"Anthropic curl error: {result.stderr.strip()}")
     return result.stdout

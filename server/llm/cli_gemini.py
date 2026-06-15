@@ -17,6 +17,9 @@ from server.llm.prompts import (  # noqa: F401
 )
 
 DEFAULT_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+# Generation can take a while for large prompts / slower (e.g. thinking) models, so allow a
+# generous, env-tunable timeout. Listing models stays fast/short.
+REQUEST_TIMEOUT = int(os.getenv("LLM_REQUEST_TIMEOUT", "120"))
 
 
 def _run_curl(payload: Dict[str, Any], model: str, api_key: str | None = None) -> str:
@@ -36,7 +39,7 @@ def _run_curl(payload: Dict[str, Any], model: str, api_key: str | None = None) -
         "-d",
         json.dumps(payload),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=REQUEST_TIMEOUT, check=False)
     if result.returncode != 0:
         raise RuntimeError(f"Gemini curl error: {result.stderr.strip()}")
     return result.stdout
