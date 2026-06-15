@@ -12,6 +12,8 @@ interface Question {
     persona: string;
     anchor?: string;
     competency?: string;
+    number?: number;
+    total?: number;
 }
 
 interface Session {
@@ -231,9 +233,15 @@ export default function Interview() {
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="text-sm text-slate-500">
-                        <span className="font-mono text-slate-400">{id?.slice(0, 8)}</span>
-                    </div>
+                    {currentQuestion?.number && currentQuestion?.total ? (
+                        <div className="text-sm font-medium text-slate-300">
+                            Question {currentQuestion.number}<span className="text-slate-500"> of {currentQuestion.total}</span>
+                        </div>
+                    ) : (
+                        <div className="text-sm text-slate-500">
+                            <span className="font-mono text-slate-400">{id?.slice(0, 8)}</span>
+                        </div>
+                    )}
                     <button
                         onClick={toggleFullscreen}
                         className="p-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
@@ -243,6 +251,15 @@ export default function Interview() {
                     </button>
                 </div>
             </div>
+
+            {currentQuestion?.number && currentQuestion?.total && (
+                <div className={`${isFullscreen ? "max-w-4xl mx-auto w-full mb-6" : ""} h-1.5 bg-slate-800 rounded-full overflow-hidden`}>
+                    <div
+                        className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                        style={{ width: `${(currentQuestion.number / currentQuestion.total) * 100}%` }}
+                    />
+                </div>
+            )}
 
             <div className={`bg-slate-900/50 border border-slate-800 rounded-2xl p-6 md:p-10 flex flex-col justify-center shadow-inner relative overflow-hidden ${isFullscreen ? "flex-1 max-w-4xl mx-auto w-full mb-8" : "min-h-[300px]"}`}>
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent opacity-50"></div>
