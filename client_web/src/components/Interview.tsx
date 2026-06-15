@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Send, User, Bot, Mic, Square, Maximize2, Minimize2 } from "lucide-react";
 import ScoreRing from "./ScoreRing";
+import ThinkingIndicator, { type ThinkingPhase } from "./ThinkingIndicator";
 
 interface Question {
     question_id: string;
@@ -47,6 +48,7 @@ export default function Interview() {
     const [answer, setAnswer] = useState("");
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [phase, setPhase] = useState<ThinkingPhase | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -80,6 +82,7 @@ export default function Interview() {
     const fetchNextQuestion = async () => {
         try {
             setLoading(true);
+            setPhase("generating");
             const res = await fetch(`http://127.0.0.1:8000/sessions/${id}/next_question`, { method: "POST" });
             if (!res.ok) {
                 const err = await res.json();
@@ -95,6 +98,7 @@ export default function Interview() {
             setError(err.message);
         } finally {
             setLoading(false);
+            setPhase(null);
         }
     };
 
@@ -116,6 +120,7 @@ export default function Interview() {
         if (!currentQuestion) return;
 
         setSubmitting(true);
+        setPhase("evaluating");
         try {
             const res = await fetch(`http://127.0.0.1:8000/sessions/${id}/answer`, {
                 method: "POST",
@@ -241,11 +246,8 @@ export default function Interview() {
             <div className={`bg-slate-900/50 border border-slate-800 rounded-2xl p-6 md:p-10 flex flex-col justify-center shadow-inner relative overflow-hidden ${isFullscreen ? "flex-1 max-w-4xl mx-auto w-full mb-8" : "min-h-[300px]"}`}>
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent opacity-50"></div>
 
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center gap-4 text-slate-500 animate-pulse">
-                        <Bot className="w-10 h-10 opacity-50" />
-                        <p>Generating next question...</p>
-                    </div>
+                {phase ? (
+                    <ThinkingIndicator phase={phase} />
                 ) : (
                     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                         <h3 className="font-display text-2xl md:text-3xl font-medium tracking-tight text-slate-100 leading-relaxed">{currentQuestion?.text}</h3>
@@ -282,7 +284,7 @@ export default function Interview() {
                         }}
                         disabled={submitting || loading}
                         placeholder="Type your answer here... (Ctrl+Enter to submit)"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-12 pr-4 py-4 text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all resize-none shadow-xl"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-12 pr-28 py-4 text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all resize-none shadow-xl"
                     />
                     <div className="absolute bottom-4 right-4 flex gap-3">
                         <button
