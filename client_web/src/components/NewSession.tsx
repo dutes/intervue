@@ -149,7 +149,7 @@ export default function NewSession() {
     return (
         <div className="max-w-2xl mx-auto pb-20">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white mb-2">New Interview Session</h1>
+                <h1 className="font-display text-4xl font-bold tracking-tight text-white mb-2">New Interview Session</h1>
                 <p className="text-slate-400">Configure your target role and resume to generate a custom interview.</p>
             </div>
 
@@ -325,7 +325,7 @@ export default function NewSession() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2"
+                        className="bg-indigo-600 hover:bg-indigo-500 active:scale-[.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 text-white px-8 py-3 rounded-xl font-medium transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     >
                         {loading ? (
                             <>Starting Session...</>
