@@ -395,6 +395,10 @@ async def end_session(session_id: str) -> Dict[str, object]:
     session.status = "completed"
     session.save()
 
+    # The interview is over; drop the in-memory API key so it doesn't linger for the
+    # process lifetime.
+    SESSION_API_KEYS.pop(session_id, None)
+
     summary = {
         "overall_score": report_payload["overall_score"],
         "strengths": report_payload["strengths"],

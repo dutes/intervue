@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Send, User, Bot, Mic, Square, Maximize2, Minimize2 } from "lucide-react";
 import ScoreRing from "./ScoreRing";
 import ThinkingIndicator, { type ThinkingPhase } from "./ThinkingIndicator";
+import { apiUrl } from "../lib/api";
 
 interface Question {
     question_id: string;
@@ -63,7 +64,7 @@ export default function Interview() {
 
     const fetchSession = async () => {
         try {
-            const res = await fetch(`http://127.0.0.1:8000/sessions/${id}`);
+            const res = await fetch(apiUrl(`/sessions/${id}`));
             if (!res.ok) throw new Error("Failed to load session");
             const data = await res.json();
             setSession(data);
@@ -83,7 +84,7 @@ export default function Interview() {
         try {
             setLoading(true);
             setPhase("generating");
-            const res = await fetch(`http://127.0.0.1:8000/sessions/${id}/next_question`, { method: "POST" });
+            const res = await fetch(apiUrl(`/sessions/${id}/next_question`), { method: "POST" });
             if (!res.ok) {
                 const err = await res.json();
                 if (err.detail === "Interview already complete") {
@@ -105,7 +106,7 @@ export default function Interview() {
     const finishSession = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`http://127.0.0.1:8000/sessions/${id}/end`, { method: "POST" });
+            const res = await fetch(apiUrl(`/sessions/${id}/end`), { method: "POST" });
             await res.json();
             navigate(`/report/${id}`);
         } catch (err) {
@@ -122,7 +123,7 @@ export default function Interview() {
         setSubmitting(true);
         setPhase("evaluating");
         try {
-            const res = await fetch(`http://127.0.0.1:8000/sessions/${id}/answer`, {
+            const res = await fetch(apiUrl(`/sessions/${id}/answer`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
