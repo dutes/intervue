@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, FileText, Briefcase, Play, Target, AlertCircle } from "lucide-react";
+import { apiUrl } from "../lib/api";
 
 const ROUND_OPTIONS = [
     { value: 1, label: "Round 1: Screening", description: "Establish baseline fit and core experience." },
@@ -52,7 +53,7 @@ export default function NewSession() {
         setLoadingModels(true);
         setModelsError(null);
         try {
-            const res = await fetch("http://127.0.0.1:8000/providers/models", {
+            const res = await fetch(apiUrl("/providers/models"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ provider, api_key: apiKey || undefined, base_url: baseUrl || undefined }),
@@ -98,7 +99,7 @@ export default function NewSession() {
 
         try {
             setLoading(true);
-            const res = await fetch("http://127.0.0.1:8000/upload", {
+            const res = await fetch(apiUrl("/upload"), {
                 method: "POST",
                 body: formData,
             });
@@ -118,7 +119,7 @@ export default function NewSession() {
         setError(null);
 
         try {
-            const res = await fetch("http://127.0.0.1:8000/sessions/start", {
+            const res = await fetch(apiUrl("/sessions/start"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
