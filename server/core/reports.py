@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+import textwrap
 from typing import Any, Dict, List, Tuple
 
 import matplotlib
@@ -24,55 +26,17 @@ def compute_competency_averages(scores: List[Dict[str, Any]]) -> Dict[str, float
     return {name: round(_avg(vals) * 25, 2) for name, vals in totals.items()}
 
 
-def compute_competency_trends(scores: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    per_question: Dict[str, Dict[str, List[float]]] = {}
-    for score in scores:
-        qid = score["question_id"]
-        comp_scores = score.get("scorecard", {}).get("competency_scores", {})
-        if qid not in per_question:
-            per_question[qid] = {}
-        for competency, value in comp_scores.items():
-            per_question[qid].setdefault(competency, []).append(float(value))
-
-    ordered_qids = sorted(per_question.keys())
-    series_map: Dict[str, List[float]] = {}
-    for qid in ordered_qids:
-        for competency, values in per_question[qid].items():
-            avg_score = round(_avg(values) * 25, 2)
-            series_map.setdefault(competency, []).append(avg_score)
-
-    trends: Dict[str, Dict[str, Any]] = {}
-    for competency, series in series_map.items():
-        if len(series) < 2:
-            delta = 0.0
-            trend = "stable"
-        else:
-            delta = round(series[-1] - series[0], 2)
-            if delta >= 5:
-                trend = "improving"
-            elif delta <= -5:
-                trend = "declining"
-            else:
-                trend = "stable"
-        trends[competency] = {"series": series, "delta": delta, "trend": trend}
-
-    return trends
-
-
-def build_7_day_plan(strengths: List[str], weaknesses: List[str], competency_trends: Dict[str, Dict[str, Any]]) -> List[Dict[str, str]]:
-    weak_focus = weaknesses[0] if weaknesses else "Answer clarity"
-    secondary_focus = weaknesses[1] if len(weaknesses) > 1 else "Structured storytelling"
-
-    declining = [name for name, item in competency_trends.items() if item.get("trend") == "declining"]
-    decline_focus = declining[0] if declining else weak_focus
-
-    strong_focus = strengths[0] if strengths else "Communication"
+def build_7_day_plan(weak_competencies: List[str], strong_competencies: List[str]) -> List[Dict[str, str]]:
+    # Use short competency names as focus topics so the tasks read cleanly.
+    weak_focus = weak_competencies[0] if weak_competencies else "Answer clarity"
+    secondary_focus = weak_competencies[1] if len(weak_competencies) > 1 else "Structured storytelling"
+    strong_focus = strong_competencies[0] if strong_competencies else "Communication"
 
     return [
-        {"day": "Day 1", "focus": weak_focus, "task": f"Write 5 STAR stories focused on {weak_focus}."},
+        {"day": "Day 1", "focus": weak_focus, "task": f"Write 5 STAR stories that demonstrate {weak_focus}."},
         {"day": "Day 2", "focus": "Metrics", "task": "Add measurable outcomes to 5 past-project examples."},
         {"day": "Day 3", "focus": secondary_focus, "task": f"Record 20 minutes of answers and tighten weak spots in {secondary_focus}."},
-        {"day": "Day 4", "focus": decline_focus, "task": f"Run a mock round targeting {decline_focus} and review mistakes."},
+        {"day": "Day 4", "focus": weak_focus, "task": f"Run a mock round targeting {weak_focus} and review your mistakes."},
         {"day": "Day 5", "focus": "Pressure mode", "task": "Practice 30 minutes with timed answers and no pauses."},
         {"day": "Day 6", "focus": strong_focus, "task": f"Leverage your strength in {strong_focus} with deeper examples and tradeoff discussion."},
         {"day": "Day 7", "focus": "Full simulation", "task": "Complete a full interview session and compare score deltas by competency."},
@@ -95,58 +59,68 @@ def compute_question_overall_scores(scores: List[Dict[str, Any]]) -> List[float]
     return [round(_avg(values), 2) for _qid, values in sorted(buckets.items())]
 
 
-def generate_charts(session_id: str, competency_avgs: Dict[str, float], overall_scores: List[float], persona_avgs: Dict[str, float]) -> Dict[str, str]:
+def generate_charts(session_id: str, competency_avgs: Dict[str, float], overall_scores: List[float]) -> Dict[str, str]:
     report_dir = REPORTS_DIR / session_id
     report_dir.mkdir(parents=True, exist_ok=True)
 
     labels = list(competency_avgs.keys())
     values = list(competency_avgs.values())
+    radar_path = report_dir / "competency_radar.png"
     if labels:
-        angles = [n / float(len(labels)) * 2 * 3.14159 for n in range(len(labels))]
-        values += values[:1]
-        angles += angles[:1]
-        fig = plt.figure(figsize=(6, 6))
+        angles = [n / float(len(labels)) * 2 * math.pi for n in range(len(labels))]
+        loop_values = values + values[:1]
+        loop_angles = angles + angles[:1]
+
+        # Larger canvas + start at top, going clockwise, so labels have room.
+        fig = plt.figure(figsize=(9, 9))
         ax = plt.subplot(111, polar=True)
-        ax.plot(angles, values, "o-", linewidth=2)
-        ax.fill(angles, values, alpha=0.25)
-        ax.set_thetagrids([a * 180 / 3.14159 for a in angles[:-1]], labels)
+        ax.set_theta_offset(math.pi / 2)
+        ax.set_theta_direction(-1)
+        ax.plot(loop_angles, loop_values, "o-", linewidth=2, color="#6366f1")
+        ax.fill(loop_angles, loop_values, alpha=0.25, color="#6366f1")
+
+        # Wrap long competency names onto multiple lines and push them off the plot.
+        wrapped = ["\n".join(textwrap.wrap(lbl, 16)) for lbl in labels]
+        ax.set_thetagrids([math.degrees(a) for a in angles], wrapped, fontsize=9)
+        ax.tick_params(axis="x", pad=22)
+
+        # Align each label to the side it sits on so it leans away from the chart.
+        for label, angle in zip(ax.get_xticklabels(), angles):
+            deg = math.degrees(angle)
+            if deg in (0, 180):
+                label.set_horizontalalignment("center")
+            elif deg < 180:
+                label.set_horizontalalignment("left")
+            else:
+                label.set_horizontalalignment("right")
+
         ax.set_ylim(0, 100)
-        radar_path = report_dir / "competency_radar.png"
-        plt.tight_layout()
-        plt.savefig(radar_path)
+        fig.subplots_adjust(left=0.22, right=0.78, top=0.82, bottom=0.18)
+        plt.savefig(radar_path, dpi=120, bbox_inches="tight")
         plt.close(fig)
-    else:
-        radar_path = report_dir / "competency_radar.png"
 
     fig = plt.figure(figsize=(7, 4))
     ax = plt.gca()
-    ax.plot(range(1, len(overall_scores) + 1), overall_scores, marker="o")
+    xs = list(range(1, len(overall_scores) + 1))
+    ax.plot(xs, overall_scores, marker="o", color="#6366f1", linewidth=2)
+    ax.fill_between(xs, overall_scores, color="#6366f1", alpha=0.12)
     ax.set_xlabel("Question #")
     ax.set_ylabel("Overall Score")
     ax.set_ylim(0, 100)
+    if xs:
+        ax.set_xticks(xs)
     ax.set_title("Score Over Time")
+    ax.grid(axis="y", alpha=0.2)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
     line_path = report_dir / "score_over_time.png"
     plt.tight_layout()
-    plt.savefig(line_path)
-    plt.close(fig)
-
-    fig = plt.figure(figsize=(6, 4))
-    ax = plt.gca()
-    personas = list(persona_avgs.keys())
-    persona_scores = list(persona_avgs.values())
-    ax.bar(personas, persona_scores, color=["#4caf50", "#2196f3", "#f44336"])
-    ax.set_ylim(0, 100)
-    ax.set_ylabel("Average Score")
-    ax.set_title("Persona Comparison")
-    bar_path = report_dir / "persona_comparison.png"
-    plt.tight_layout()
-    plt.savefig(bar_path)
+    plt.savefig(line_path, dpi=120)
     plt.close(fig)
 
     return {
         "competency_radar": str(radar_path),
         "score_over_time": str(line_path),
-        "persona_comparison": str(bar_path),
     }
 
 
@@ -189,9 +163,8 @@ def build_report(session: Dict[str, Any], api_key: str | None = None) -> Tuple[D
     heuristic_score = round(_avg(overall_scores), 2)
 
     competency_avgs = compute_competency_averages(scores)
-    competency_trends = compute_competency_trends(scores)
     persona_avgs = compute_persona_averages(scores)
-    report_paths = generate_charts(session["session_id"], competency_avgs, overall_scores, persona_avgs)
+    report_paths = generate_charts(session["session_id"], competency_avgs, overall_scores)
 
     try:
         grading_result = grading.generate_report(session, api_key=api_key)
@@ -207,13 +180,17 @@ def build_report(session: Dict[str, Any], api_key: str | None = None) -> Tuple[D
         weaknesses = [name for name, _ in sorted_competencies[-3:]]
         persona_feedback = generate_persona_feedback(session, strengths, weaknesses)
 
-    practice_plan = build_7_day_plan(strengths, weaknesses, competency_trends)
+    # Drive the practice plan off short competency names (weakest first) so tasks read cleanly,
+    # regardless of whether strengths/weaknesses came back as full sentences from the LLM.
+    ranked_competencies = sorted(competency_avgs.items(), key=lambda item: item[1])
+    weak_competencies = [name for name, _ in ranked_competencies[:2]]
+    strong_competencies = [name for name, _ in reversed(ranked_competencies[-2:])]
+    practice_plan = build_7_day_plan(weak_competencies, strong_competencies)
 
     report_payload = {
         "session_id": session["session_id"],
         "overall_score": overall_score,
         "competency_averages": competency_avgs,
-        "competency_trends": competency_trends,
         "strengths": strengths,
         "weaknesses": weaknesses,
         "overall_scores": overall_scores,

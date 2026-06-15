@@ -10,7 +10,7 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app-bg min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
-        <nav className="relative z-10 border-b border-slate-800 bg-slate-950/50 backdrop-blur-xl sticky top-0">
+        <nav className="print:hidden relative z-10 border-b border-slate-800 bg-slate-950/50 backdrop-blur-xl sticky top-0">
           <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
             <Link to="/" className="font-display flex items-center gap-2 font-bold text-xl tracking-tight text-indigo-400 hover:text-indigo-300 transition-colors">
               <Terminal className="w-6 h-6" />
