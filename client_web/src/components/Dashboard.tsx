@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Play, Calendar, CheckCircle, ArrowRight } from "lucide-react";
+import ScoreRing from "./ScoreRing";
 
 interface Session {
     session_id: string;
@@ -92,14 +93,7 @@ export default function Dashboard() {
 
                                 <div className="flex items-center gap-6">
                                     {(session.overall_score !== undefined && session.overall_score !== null) && (
-                                        <div className="text-right">
-                                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-0.5">Score</p>
-                                            <p className={`text-xl font-bold ${session.overall_score >= 80 ? 'text-emerald-400' :
-                                                session.overall_score >= 60 ? 'text-amber-400' : 'text-red-400'
-                                                }`}>
-                                                {session.overall_score}/100
-                                            </p>
-                                        </div>
+                                        <ScoreRing value={session.overall_score} caption="/ 100" />
                                     )}
                                     <ArrowRight className="w-5 h-5 text-slate-600 group-hover:text-indigo-400 transform group-hover:translate-x-1 transition-all" />
                                 </div>
