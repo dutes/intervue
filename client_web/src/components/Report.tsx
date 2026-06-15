@@ -1,19 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { CheckCircle, AlertCircle, BarChart2, Award, Briefcase, Download, TrendingUp, CalendarDays } from "lucide-react";
+import { CheckCircle, AlertCircle, BarChart2, Award, Briefcase, Download, TrendingUp, CalendarDays, Smile, Scale, Flame, Users } from "lucide-react";
 import ScoreRing from "./ScoreRing";
+import { scoreTier, scoreTextClass, scoreStroke } from "../lib/score";
 
 interface PersonaFeedback {
     persona: string;
     positives: string[];
     concerns: string[];
     next_step: string;
-}
-
-interface CompetencyTrend {
-    series: number[];
-    delta: number;
-    trend: "improving" | "declining" | "stable";
 }
 
 interface PracticeDay {
@@ -26,7 +21,6 @@ interface ReportData {
     session_id: string;
     overall_score: number;
     competency_averages: Record<string, number>;
-    competency_trends: Record<string, CompetencyTrend>;
     strengths: string[];
     weaknesses: string[];
     overall_scores: number[];
@@ -36,8 +30,25 @@ interface ReportData {
     report_paths: {
         competency_radar: string;
         score_over_time: string;
-        persona_comparison: string;
     };
+}
+
+const PERSONA_META: Record<string, { label: string; Icon: typeof Smile; color: string; blurb: string }> = {
+    positive: { label: "The Supporter", Icon: Smile, color: "#34d399", blurb: "Warm and encouraging — drew out your best." },
+    neutral: { label: "The Evaluator", Icon: Scale, color: "#6366f1", blurb: "Balanced and evidence-focused." },
+    hostile: { label: "The Challenger", Icon: Flame, color: "#f87171", blurb: "Skeptical and probing — pressure-tested you." },
+};
+
+const PERSONA_ORDER = ["positive", "neutral", "hostile"];
+
+function panelInsight(pa: Record<string, number>): string | null {
+    const pos = pa.positive;
+    const hos = pa.hostile;
+    if (pos == null || hos == null) return null;
+    const gap = Math.round(pos - hos);
+    if (gap >= 15) return `You scored ${gap} points higher with a supportive interviewer than a hostile one — practise staying sharp under pressure.`;
+    if (gap <= -15) return `You performed ${Math.abs(gap)} points better under a hostile interviewer than a friendly one — you rise to a challenge.`;
+    return "Your performance held steady across friendly and hostile interviewers — a sign of composure under pressure.";
 }
 
 export default function InterviewReport() {
@@ -120,7 +131,7 @@ export default function InterviewReport() {
             <div className="grid md:grid-cols-2 gap-6">
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
                     <h3 className="text-slate-200 font-medium mb-4 flex items-center gap-2">
-                        <BarChart2 className="w-5 h-5 text-indigo-400" /> Competency Breakdown
+                        <BarChart2 className="w-5 h-5 text-indigo-400" /> Competency Radar
                     </h3>
                     <div
                         className="bg-white/5 rounded-xl p-4 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"
@@ -128,7 +139,7 @@ export default function InterviewReport() {
                     >
                         <img src={getChartUrl(report.report_paths.competency_radar)} alt="Competency Radar" className="max-h-64 object-contain" />
                     </div>
-                    <p className="text-xs text-center text-slate-500 mt-2">Click to expand</p>
+                    <p className="print:hidden text-xs text-center text-slate-500 mt-2">Click to expand</p>
                 </div>
 
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
@@ -141,28 +152,65 @@ export default function InterviewReport() {
                     >
                         <img src={getChartUrl(report.report_paths.score_over_time)} alt="Score Trend" className="max-h-64 object-contain" />
                     </div>
-                    <p className="text-xs text-center text-slate-500 mt-2">Click to expand</p>
+                    <p className="print:hidden text-xs text-center text-slate-500 mt-2">Click to expand</p>
                 </div>
             </div>
 
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-                <h3 className="text-white font-medium mb-4 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-indigo-400" /> Competency Trend Tracking
+                <h3 className="text-white font-medium mb-1 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-indigo-400" /> Competency Breakdown
                 </h3>
-                <div className="grid md:grid-cols-2 gap-4">
-                    {Object.entries(report.competency_trends || {}).map(([name, trend]) => (
-                        <div key={name} className="border border-slate-800 rounded-xl p-4 bg-slate-950/40">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-slate-200">{name}</span>
-                                <span className={`text-xs uppercase ${trend.trend === "improving" ? "text-emerald-400" : trend.trend === "declining" ? "text-amber-400" : "text-slate-400"}`}>
-                                    {trend.trend}
-                                </span>
-                            </div>
-                            <p className="text-xs text-slate-400">Delta: {trend.delta}</p>
-                            <p className="text-xs text-slate-500 mt-1">Series: {trend.series.join(" → ")}</p>
-                        </div>
-                    ))}
+                <p className="text-xs text-slate-500 mb-4">Your average score per competency, strongest first.</p>
+                <div className="grid gap-3">
+                    {Object.entries(report.competency_averages || {})
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([name, score]) => {
+                            const tier = scoreTier(score);
+                            return (
+                                <div key={name} className="flex items-center gap-3">
+                                    <span className="text-sm text-slate-300 w-56 shrink-0 truncate" title={name}>{name}</span>
+                                    <div className="flex-1 h-2.5 rounded-full bg-slate-800 overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full transition-all duration-700"
+                                            style={{ width: `${Math.max(0, Math.min(100, score))}%`, backgroundColor: scoreStroke[tier] }}
+                                        />
+                                    </div>
+                                    <span className={`text-sm font-semibold w-10 text-right ${scoreTextClass[tier]}`}>{Math.round(score)}</span>
+                                </div>
+                            );
+                        })}
                 </div>
+            </div>
+
+            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+                <h3 className="text-white font-medium mb-1 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-indigo-400" /> How You Handled the Panel
+                </h3>
+                <p className="text-xs text-slate-500 mb-4">Your average score with each interviewer style.</p>
+                <div className="grid sm:grid-cols-3 gap-4">
+                    {PERSONA_ORDER.filter((p) => report.persona_averages?.[p] != null).map((p) => {
+                        const meta = PERSONA_META[p];
+                        const score = report.persona_averages[p];
+                        const Icon = meta.Icon;
+                        return (
+                            <div key={p} className="border border-slate-800 rounded-xl p-4 bg-slate-950/40 flex flex-col items-center text-center">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${meta.color}1a` }}>
+                                        <Icon className="w-4 h-4" style={{ color: meta.color }} />
+                                    </span>
+                                    <span className="text-sm font-semibold text-slate-200">{meta.label}</span>
+                                </div>
+                                <ScoreRing value={score} caption="/ 100" />
+                                <p className="text-xs text-slate-500 mt-3 leading-relaxed">{meta.blurb}</p>
+                            </div>
+                        );
+                    })}
+                </div>
+                {panelInsight(report.persona_averages || {}) && (
+                    <div className="mt-4 text-sm text-slate-300 bg-indigo-500/10 border border-indigo-500/20 rounded-xl px-4 py-3">
+                        {panelInsight(report.persona_averages || {})}
+                    </div>
+                )}
             </div>
 
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
@@ -219,7 +267,7 @@ export default function InterviewReport() {
                 </div>
             </div>
 
-            <div className="flex justify-between pt-8 border-t border-slate-800">
+            <div className="print:hidden flex justify-between pt-8 border-t border-slate-800">
                 <Link to="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
                     Back to Dashboard
                 </Link>

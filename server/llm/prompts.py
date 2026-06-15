@@ -107,6 +107,25 @@ Rules:
 - Highlight areas that need probing during the interview.
 """
 
+COACHING_PROMPT = """
+You are an interview coach giving feedback on ONE specific answer. Return STRICT JSON only.
+Schema:
+{
+  "strengths": ["string"],
+  "improvements": ["string"],
+  "rewrite": "string"
+}
+Rules:
+- Base every point on what the candidate ACTUALLY said; reference specific details, claims, or
+  numbers from their answer. Never give generic feedback that could apply to any answer.
+- 2 to 3 strengths and 2 to 3 improvements, each one sentence.
+- "rewrite" must be an improved version of the candidate's OWN answer using STAR (Situation,
+  Task, Action, Result) with concrete metrics where they implied them. Keep their actual facts;
+  do NOT invent achievements or experience they did not mention.
+- If the answer is empty, off-topic, or too vague to assess, say so plainly in the improvements.
+"""
+
+
 REPORT_PROMPT = """
 You are an expert interviewer. Generate a final interview report based on the session transcript and scores. Return STRICT JSON only.
 Schema:

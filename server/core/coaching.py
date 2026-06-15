@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from server.llm import dispatch, prompts
+from server.llm.schemas import CoachingFeedback
+from server.core.json_utils import parse_json_response
 
 
 def _round2(value: float) -> float:
@@ -63,12 +67,13 @@ def aggregate_star(score_payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def build_coaching(
+def _heuristic_coaching(
     question_text: str,
     answer_text: str,
     competency_scores: Dict[str, float],
     star_feedback: Dict[str, Any],
 ) -> Dict[str, Any]:
+    """Template-based fallback used for the mock provider or when the LLM call fails."""
     ranked = sorted(competency_scores.items(), key=lambda item: item[1], reverse=True)
     top = [name for name, _ in ranked[:2]]
     low = [name for name, _ in ranked[-2:]] if ranked else []
@@ -105,3 +110,65 @@ def build_coaching(
         "improvements": improvements,
         "rewrite": rewritten_answer,
     }
+
+
+def _build_coaching_prompt(
+    question_text: str,
+    answer_text: str,
+    session: Dict[str, Any],
+    star_feedback: Dict[str, Any],
+    score_payloads: Optional[List[Dict[str, Any]]],
+) -> str:
+    rubric = session.get("rubric") or {}
+    comps = rubric.get("competencies", [])
+    comp_lines = "\n".join(
+        f"- {c.get('name')}: {c.get('what_good_looks_like', '')}" for c in comps
+    ) or "(none)"
+
+    # Pull the scorers' follow-up notes so coaching can target the same gaps.
+    suggestions = []
+    for payload in score_payloads or []:
+        note = (payload.get("scorecard") or {}).get("follow_up_suggestion")
+        if note:
+            suggestions.append(note)
+    signal = "; ".join(dict.fromkeys(suggestions)) or "none"
+
+    return (
+        f"Question:\n{question_text}\n\n"
+        f"Candidate's answer:\n{answer_text.strip() or '(no answer given)'}\n\n"
+        f"Rubric competencies:\n{comp_lines}\n\n"
+        f"STAR assessment: {star_feedback.get('summary', '')}\n"
+        f"Scorer follow-up notes: {signal}\n\n"
+        "Give specific coaching on THIS answer."
+    )
+
+
+def build_coaching(
+    question_text: str,
+    answer_text: str,
+    competency_scores: Dict[str, float],
+    star_feedback: Dict[str, Any],
+    session: Optional[Dict[str, Any]] = None,
+    api_key: Optional[str] = None,
+    score_payloads: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    provider = dispatch.normalize_provider((session or {}).get("provider", "mock"))
+
+    # Mock or no session context -> use the template fallback.
+    if not session or provider == "mock":
+        return _heuristic_coaching(question_text, answer_text, competency_scores, star_feedback)
+
+    try:
+        prompt = (
+            f"{prompts.COACHING_PROMPT}\n\n"
+            f"{_build_coaching_prompt(question_text, answer_text, session, star_feedback, score_payloads)}"
+        )
+        cfg = dispatch.config_from_session(session, api_key=api_key)
+        raw = dispatch.call_llm(cfg, prompt, temperature=0.3)
+        feedback = CoachingFeedback.model_validate(parse_json_response(raw))
+        data = feedback.model_dump()
+        data["question"] = question_text
+        return data
+    except Exception as exc:  # noqa: BLE001
+        print(f"LLM coaching failed, falling back to heuristics: {exc}")
+        return _heuristic_coaching(question_text, answer_text, competency_scores, star_feedback)

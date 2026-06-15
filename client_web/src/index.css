@@ -36,3 +36,52 @@
     radial-gradient(60rem 40rem at 50% -10%, rgba(99, 102, 241, 0.14), transparent 70%),
     radial-gradient(50rem 40rem at 100% 0%, rgba(56, 189, 248, 0.08), transparent 70%);
 }
+
+/* Print / "Save Report" (window.print) — turn the dark app into a clean light document
+   that is readable regardless of the browser's "background graphics" setting. */
+@media print {
+  /* Keep intentional colors (chart images, score bars/rings) but flatten the dark chrome. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .app-bg {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+  .app-bg::before {
+    display: none !important;
+  }
+
+  /* Cards become white with a light border. */
+  [class*="bg-slate-9"],
+  [class*="bg-slate-950"] {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Dark-on-light text. */
+  .text-white,
+  .text-slate-100,
+  .text-slate-200,
+  .text-slate-300 {
+    color: #0f172a !important;
+  }
+  .text-slate-400,
+  .text-slate-500 {
+    color: #475569 !important;
+  }
+
+  main {
+    padding-top: 0 !important;
+  }
+
+  /* Don't slice cards, list items, or plan days across page breaks. */
+  .rounded-2xl,
+  .rounded-xl {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
