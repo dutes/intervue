@@ -83,6 +83,8 @@ class CoachingFeedback(BaseModel):
     strengths: List[str]
     improvements: List[str]
     rewrite: str
+    # A model/exemplar answer to the question (optional; defaults empty if the model omits it).
+    ideal_answer: str = ""
 
 
 class Persona(BaseModel):
