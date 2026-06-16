@@ -11,7 +11,9 @@ const PERSONA_KEYS = ["positive", "neutral", "hostile"];
  */
 export function useQuestionVoice() {
     const supported = typeof window !== "undefined" && "speechSynthesis" in window;
-    const [enabled, setEnabled] = useState(supported);
+    // Off until the user opts in. The opt-in click also serves as the browser "user gesture"
+    // that unlocks SpeechSynthesis (Chrome blocks speech before any interaction).
+    const [enabled, setEnabled] = useState(false);
     const personaVoices = useRef<Record<string, SpeechSynthesisVoice | undefined>>({});
 
     // Voices load asynchronously in most browsers, so assign on load AND on the
@@ -41,11 +43,14 @@ export function useQuestionVoice() {
         if (supported) window.speechSynthesis.cancel();
     }, [supported]);
 
+    // Caller decides whether speaking is wanted; speak() just does it (so it can be used to
+    // speak the current question the moment the user enables voice).
     const speak = useCallback(
         (text: string, persona: string) => {
-            if (!supported || !enabled || !text) return;
+            if (!supported || !text) return;
             const synth = window.speechSynthesis;
             synth.cancel(); // never overlap two utterances
+            synth.resume(); // Chrome can leave the queue paused; this unsticks it
             const utterance = new SpeechSynthesisUtterance(text);
             const voice = personaVoices.current[persona];
             if (voice) utterance.voice = voice;
@@ -53,16 +58,8 @@ export function useQuestionVoice() {
             utterance.pitch = 1.0;
             synth.speak(utterance);
         },
-        [supported, enabled],
+        [supported],
     );
 
-    const toggle = useCallback(() => {
-        setEnabled((prev) => {
-            const next = !prev;
-            if (!next && supported) window.speechSynthesis.cancel(); // muting stops current speech
-            return next;
-        });
-    }, [supported]);
-
-    return { supported, enabled, toggle, speak, stop };
+    return { supported, enabled, setEnabled, speak, stop };
 }

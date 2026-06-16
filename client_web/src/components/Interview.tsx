@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Send, User, Bot, Mic, Square, Maximize2, Minimize2, Volume2, VolumeX } from "lucide-react";
+import { Send, User, Bot, Mic, Square, Maximize2, Minimize2, Volume2, VolumeX, Keyboard } from "lucide-react";
 import ScoreRing from "./ScoreRing";
 import ThinkingIndicator, { type ThinkingPhase } from "./ThinkingIndicator";
 import { apiUrl } from "../lib/api";
@@ -73,11 +73,33 @@ export default function Interview() {
     // Delivery timing: when the candidate started composing, and whether they used voice.
     const answerStartRef = useRef<number | null>(null);
     const usedVoiceRef = useRef<boolean>(false);
-    const { supported: voiceSupported, enabled: voiceEnabled, toggle: toggleVoice, speak, stop: stopSpeaking } = useQuestionVoice();
+    const { supported: voiceSupported, enabled: voiceEnabled, setEnabled: setVoiceEnabled, speak, stop: stopSpeaking } = useQuestionVoice();
+    // The candidate picks voice or text before the first question (the click also unlocks audio).
+    // If the browser has no speech support, skip the choice and stay in text mode.
+    const [modeChosen, setModeChosen] = useState(!voiceSupported);
 
-    // Read each new question aloud (once per question), unless we're mid "thinking".
+    const chooseVoiceMode = () => {
+        setVoiceEnabled(true);
+        setModeChosen(true);
+        if (currentQuestion?.text) speak(currentQuestion.text, currentQuestion.persona);
+    };
+    const chooseTextMode = () => {
+        setVoiceEnabled(false);
+        setModeChosen(true);
+    };
+    const handleVoiceToggle = () => {
+        const next = !voiceEnabled;
+        setVoiceEnabled(next);
+        if (next) {
+            if (currentQuestion?.text) speak(currentQuestion.text, currentQuestion.persona);
+        } else {
+            stopSpeaking();
+        }
+    };
+
+    // Read each new question aloud (once per question) when voice is on and we're not "thinking".
     useEffect(() => {
-        if (currentQuestion?.text && !phase) {
+        if (voiceEnabled && currentQuestion?.text && !phase) {
             speak(currentQuestion.text, currentQuestion.persona);
         }
         // Reset delivery timing for the new question.
@@ -258,6 +280,37 @@ export default function Interview() {
 
     return (
         <div ref={containerRef} className={`transition-all duration-300 ${isFullscreen ? "fixed inset-0 z-50 bg-slate-950 p-8 flex flex-col justify-center" : "max-w-4xl mx-auto grid gap-6 pb-20"}`}>
+            {voiceSupported && !modeChosen && (
+                <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-8 text-center animate-in slide-in-from-bottom-4 duration-300">
+                        <h2 className="font-display text-2xl font-bold tracking-tight text-white mb-1">How do you want to interview?</h2>
+                        <p className="text-sm text-slate-400 mb-6">You can switch anytime with the speaker icon.</p>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <button
+                                onClick={chooseVoiceMode}
+                                className="group border border-slate-800 hover:border-indigo-500/50 bg-slate-950/40 hover:bg-slate-900 rounded-xl p-5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                            >
+                                <span className="w-12 h-12 mx-auto mb-3 rounded-full bg-indigo-500/10 flex items-center justify-center">
+                                    <Volume2 className="w-6 h-6 text-indigo-400" />
+                                </span>
+                                <p className="text-slate-100 font-medium">Voice</p>
+                                <p className="text-xs text-slate-500 mt-1">Questions are read aloud</p>
+                            </button>
+                            <button
+                                onClick={chooseTextMode}
+                                className="group border border-slate-800 hover:border-indigo-500/50 bg-slate-950/40 hover:bg-slate-900 rounded-xl p-5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                            >
+                                <span className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-800 flex items-center justify-center">
+                                    <Keyboard className="w-6 h-6 text-slate-300" />
+                                </span>
+                                <p className="text-slate-100 font-medium">Text</p>
+                                <p className="text-xs text-slate-500 mt-1">Read questions yourself</p>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className={`flex items-center justify-between ${isFullscreen ? "mb-8 max-w-4xl mx-auto w-full" : ""}`}>
                 <div className="flex items-center gap-3">
                     <div className="bg-indigo-500/10 p-2 rounded-lg">
@@ -289,7 +342,7 @@ export default function Interview() {
                     )}
                     {voiceSupported && (
                         <button
-                            onClick={toggleVoice}
+                            onClick={handleVoiceToggle}
                             aria-label={voiceEnabled ? "Mute the interviewer's voice" : "Let the interviewer read questions aloud"}
                             className="p-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
                             title={voiceEnabled ? "Mute interviewer voice" : "Read questions aloud"}
