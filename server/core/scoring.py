@@ -13,6 +13,8 @@ def build_scoring_prompt(session: Dict[str, Any], question: Dict[str, Any], answ
     rubric_json = json.dumps(session["rubric"], indent=2)
     style = persona_style(persona)
     return (
+        f"Job Spec:\n{session.get('job_spec', '')}\n\n"
+        f"Candidate CV (use this to judge contradiction_with_cv):\n{session.get('cv_text', '')}\n\n"
         f"Rubric JSON:\n{rubric_json}\n\n"
         f"Question:\n{question['text']}\n\n"
         f"Answer:\n{answer_text}\n\n"
