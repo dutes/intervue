@@ -15,6 +15,7 @@ interface Question {
     competency?: string;
     number?: number;
     total?: number;
+    is_follow_up?: boolean;
 }
 
 interface Session {
@@ -241,7 +242,14 @@ export default function Interview() {
                         <Bot className="w-6 h-6 text-indigo-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-indigo-400 font-medium">AI Interviewer</p>
+                        <p className="text-sm text-indigo-400 font-medium flex items-center gap-2">
+                            AI Interviewer
+                            {currentQuestion?.is_follow_up && (
+                                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                    Follow-up
+                                </span>
+                            )}
+                        </p>
                         <p className="text-xs text-slate-500 uppercase tracking-wider">
                             {currentQuestion?.round} • {currentQuestion?.persona}
                         </p>
