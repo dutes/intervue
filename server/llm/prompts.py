@@ -21,8 +21,15 @@ Schema:
   ]
 }
 Rules:
-- 6 to 8 competencies
-- weights must sum to 1.0
+- 6 to 8 competencies, each drawn from the ACTUAL requirements in this job spec (not generic
+  interview traits). Name the skills and responsibilities the role really calls for.
+- "what_good_looks_like" must describe an OBSERVABLE behaviour in an answer — what a strong
+  candidate would concretely say or demonstrate — not an abstract trait.
+- "red_flags" must be concrete, answer-level warning signs (e.g. "no metrics", "blames others",
+  "only describes team work, not their own contribution").
+- "weight" reflects how critical the competency is TO THIS ROLE: weight the must-haves from the
+  job spec highest. Weights must sum to 1.0.
+- Do not include any extra keys.
 """
 
 QUESTION_PROMPT = """
@@ -69,9 +76,22 @@ Schema:
   },
   "follow_up_suggestion": "string"
 }
+Scoring scale for EACH competency (integers 0..4) — score ONLY on evidence present in the answer:
+- 0 = did not address this competency at all
+- 1 = claimed/asserted but with no supporting detail
+- 2 = relevant but generic; no specific example or actions
+- 3 = a specific, concrete example with the candidate's own actions
+- 4 = a specific example WITH a measurable outcome/result and reflection
 Rules:
-- competency scores are integers 0..4
-- include every competency from the rubric
+- Include every competency from the rubric. If the answer gives no evidence for one, score it 0
+  rather than guessing — do not reward an answer for competencies it never touched.
+- "specificity" (0..3): 0 = vague throughout, 3 = concrete names/numbers/decisions throughout.
+- "vagueness" (0..3): 0 = precise, 3 = hand-wavy and non-committal.
+- "star_complete": true only if Situation, Task, Action AND Result are all present.
+- "metrics_present": true only if the answer contains a concrete number/measurable outcome.
+- "contradiction_with_cv": true only if the answer conflicts with the provided CV.
+- "missing_example": true if the answer stays abstract with no concrete example.
+- "follow_up_suggestion": the single sharpest follow-up question to expose the biggest gap.
 """
 
 JSON_FIX_PROMPT = """
