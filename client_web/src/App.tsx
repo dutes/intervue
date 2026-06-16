@@ -1,12 +1,15 @@
-
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
-import { Terminal, LayoutDashboard, PlusCircle } from "lucide-react";
+import { Terminal, LayoutDashboard, PlusCircle, HelpCircle } from "lucide-react";
 import Dashboard from "./components/Dashboard";
 import NewSession from "./components/NewSession";
 import Interview from "./components/Interview";
 import InterviewReport from "./components/Report";
+import HowItWorks from "./components/HowItWorks";
 
 function App() {
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+
   return (
     <BrowserRouter>
       <div className="app-bg min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
@@ -17,6 +20,10 @@ function App() {
               <span>Intervue</span>
             </Link>
             <div className="flex gap-6 text-sm font-medium text-slate-400">
+              <button onClick={() => setShowHowItWorks(true)} className="flex items-center gap-2 hover:text-slate-100 transition-colors">
+                <HelpCircle className="w-4 h-4" />
+                How it works
+              </button>
               <Link to="/" className="flex items-center gap-2 hover:text-slate-100 transition-colors">
                 <LayoutDashboard className="w-4 h-4" />
                 Dashboard
@@ -37,6 +44,8 @@ function App() {
             <Route path="/report/:id" element={<InterviewReport />} />
           </Routes>
         </main>
+
+        <HowItWorks open={showHowItWorks} onClose={() => setShowHowItWorks(false)} />
       </div>
     </BrowserRouter>
   );
