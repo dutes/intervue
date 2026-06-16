@@ -7,8 +7,26 @@ import Interview from "./components/Interview";
 import InterviewReport from "./components/Report";
 import HowItWorks from "./components/HowItWorks";
 
+const HOW_IT_WORKS_SEEN_KEY = "intervue_seen_how_it_works";
+
 function App() {
-  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  // Auto-open the explainer on first run, then remember it's been seen.
+  const [showHowItWorks, setShowHowItWorks] = useState(() => {
+    try {
+      return !localStorage.getItem(HOW_IT_WORKS_SEEN_KEY);
+    } catch {
+      return false; // e.g. storage blocked in private mode — don't nag
+    }
+  });
+
+  const closeHowItWorks = () => {
+    setShowHowItWorks(false);
+    try {
+      localStorage.setItem(HOW_IT_WORKS_SEEN_KEY, "1");
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   return (
     <BrowserRouter>
@@ -45,7 +63,7 @@ function App() {
           </Routes>
         </main>
 
-        <HowItWorks open={showHowItWorks} onClose={() => setShowHowItWorks(false)} />
+        <HowItWorks open={showHowItWorks} onClose={closeHowItWorks} />
       </div>
     </BrowserRouter>
   );
