@@ -28,6 +28,7 @@ interface Coaching {
     strengths: string[];
     improvements: string[];
     rewrite: string;
+    ideal_answer?: string;
 }
 
 interface StarFeedback {
@@ -384,9 +385,16 @@ export default function Interview() {
                     </div>
 
                     <div>
-                        <p className="text-xs uppercase text-indigo-400 mb-1">Rewrite</p>
+                        <p className="text-xs uppercase text-indigo-400 mb-1">Your answer, rewritten</p>
                         <pre className="text-xs whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{latestFeedback.coaching.rewrite}</pre>
                     </div>
+
+                    {latestFeedback.coaching.ideal_answer && (
+                        <div className="mt-4">
+                            <p className="text-xs uppercase text-emerald-400 mb-1">Model answer</p>
+                            <pre className="text-xs whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{latestFeedback.coaching.ideal_answer}</pre>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

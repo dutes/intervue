@@ -104,11 +104,18 @@ def _heuristic_coaching(
             f"{rewritten_answer}"
         )
 
+    ideal_answer = (
+        "Situation: Briefly set the context. Task: State your specific responsibility. "
+        "Action: Describe the concrete steps you personally took. "
+        "Result: Give a measurable outcome (a number, a saved cost, a faster timeline)."
+    )
+
     return {
         "question": question_text,
         "strengths": strengths,
         "improvements": improvements,
         "rewrite": rewritten_answer,
+        "ideal_answer": ideal_answer,
     }
 
 
