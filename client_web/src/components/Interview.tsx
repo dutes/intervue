@@ -39,11 +39,20 @@ interface StarFeedback {
     summary: string;
 }
 
+interface Delivery {
+    word_count: number;
+    wpm: number | null;
+    hedge_count: number;
+    used_voice: boolean;
+    notes: string[];
+}
+
 interface AnswerFeedback {
     average_overall_score: number;
     competency_scores: Record<string, number>;
     star_feedback: StarFeedback;
     coaching: Coaching;
+    delivery?: Delivery;
 }
 
 export default function Interview() {
@@ -61,6 +70,9 @@ export default function Interview() {
     const [latestFeedback, setLatestFeedback] = useState<AnswerFeedback | null>(null);
     const recognitionRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    // Delivery timing: when the candidate started composing, and whether they used voice.
+    const answerStartRef = useRef<number | null>(null);
+    const usedVoiceRef = useRef<boolean>(false);
     const { supported: voiceSupported, enabled: voiceEnabled, toggle: toggleVoice, speak, stop: stopSpeaking } = useQuestionVoice();
 
     // Read each new question aloud (once per question), unless we're mid "thinking".
@@ -68,6 +80,9 @@ export default function Interview() {
         if (currentQuestion?.text && !phase) {
             speak(currentQuestion.text, currentQuestion.persona);
         }
+        // Reset delivery timing for the new question.
+        answerStartRef.current = null;
+        usedVoiceRef.current = false;
         // Only re-run when the question changes, not when speak()/phase identity changes.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentQuestion?.question_id]);
@@ -137,6 +152,7 @@ export default function Interview() {
 
         setSubmitting(true);
         setPhase("evaluating");
+        const durationSeconds = answerStartRef.current ? (Date.now() - answerStartRef.current) / 1000 : null;
         try {
             const res = await fetch(apiUrl(`/sessions/${id}/answer`), {
                 method: "POST",
@@ -144,6 +160,8 @@ export default function Interview() {
                 body: JSON.stringify({
                     question_id: currentQuestion.question_id,
                     answer_text: answer,
+                    duration_seconds: durationSeconds,
+                    used_voice: usedVoiceRef.current,
                 }),
             });
             if (!res.ok) throw new Error("Failed to submit answer");
@@ -174,6 +192,10 @@ export default function Interview() {
 
         // Don't let the interviewer talk over the candidate.
         stopSpeaking();
+
+        // Mark that this answer was spoken, and start the delivery timer if not already.
+        usedVoiceRef.current = true;
+        if (answerStartRef.current === null) answerStartRef.current = Date.now();
 
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         recognitionRef.current = new SpeechRecognition();
@@ -329,7 +351,10 @@ export default function Interview() {
                         autoFocus
                         rows={4}
                         value={answer}
-                        onChange={(e) => setAnswer(e.target.value)}
+                        onChange={(e) => {
+                            if (answerStartRef.current === null && e.target.value) answerStartRef.current = Date.now();
+                            setAnswer(e.target.value);
+                        }}
                         onKeyDown={(e) => {
                             if (e.key === "Enter" && e.ctrlKey) submitAnswer(e);
                         }}
@@ -372,6 +397,20 @@ export default function Interview() {
                     <p className="text-xs text-slate-500 mb-4">
                         STAR complete: {String(latestFeedback.star_feedback.star_complete)} | Metrics: {String(latestFeedback.star_feedback.metrics_present)} | Specificity: {latestFeedback.star_feedback.specificity}
                     </p>
+
+                    {latestFeedback.delivery && (
+                        <div className="mb-4 bg-slate-950/40 border border-slate-800 rounded-xl p-3">
+                            <p className="text-xs uppercase text-sky-400 mb-1">Delivery</p>
+                            <p className="text-xs text-slate-500 mb-2">
+                                {latestFeedback.delivery.word_count} words
+                                {latestFeedback.delivery.wpm != null && ` · ~${latestFeedback.delivery.wpm} wpm`}
+                                {latestFeedback.delivery.hedge_count > 0 && ` · ${latestFeedback.delivery.hedge_count} hedging phrases`}
+                            </p>
+                            <ul className="text-sm text-slate-300 space-y-1">
+                                {latestFeedback.delivery.notes.map((n, i) => <li key={i}>• {n}</li>)}
+                            </ul>
+                        </div>
+                    )}
 
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                         <div>
