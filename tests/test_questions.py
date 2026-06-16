@@ -51,3 +51,54 @@ def test_previous_qa_block_surfaces_drill_signals(sample_session):
     assert "I profiled queries" in block          # the answer is included
     assert "Drill here" in block                  # weak-answer signal fired
     assert "Ask for the specific bottleneck." in block
+
+
+# --- adaptive follow-up logic ---
+
+def _session_with_answer(*, overall, missing_example=False, kind="main"):
+    """A one-question session where q1 was answered with the given score/flags."""
+    return {
+        "questions": [{"question_id": "q1", "text": "How did you scale it?", "round": "screening",
+                       "persona": "positive", "competency": "X", "kind": kind}],
+        "answers": [{"question_id": "q1", "answer_text": "we did stuff"}],
+        "scores": [{"question_id": "q1", "persona": "neutral", "overall_score": overall,
+                    "scorecard": {"issues": {"vagueness": 0, "missing_example": missing_example}}}],
+    }
+
+
+def test_needs_follow_up_triggers_on_low_score():
+    session = _session_with_answer(overall=40.0)
+    parent = questions.needs_follow_up(session)
+    assert parent is not None and parent["question_id"] == "q1"
+
+
+def test_needs_follow_up_triggers_on_missing_example_even_if_score_ok():
+    session = _session_with_answer(overall=80.0, missing_example=True)
+    assert questions.needs_follow_up(session) is not None
+
+
+def test_needs_follow_up_none_for_strong_answer():
+    session = _session_with_answer(overall=85.0)
+    assert questions.needs_follow_up(session) is None
+
+
+def test_needs_follow_up_not_twice_for_same_question():
+    session = _session_with_answer(overall=40.0)
+    # A follow-up to q1 already exists -> don't follow up again.
+    session["questions"].append({"question_id": "q1-f", "text": "deeper?", "kind": "follow_up", "parent_id": "q1"})
+    assert questions.needs_follow_up(session) is None
+
+
+def test_needs_follow_up_respects_global_cap():
+    session = _session_with_answer(overall=40.0)
+    session["questions"] = [{"question_id": f"f{i}", "kind": "follow_up"} for i in range(questions.MAX_FOLLOWUPS)] + session["questions"]
+    assert questions.needs_follow_up(session) is None
+
+
+def test_main_question_count_excludes_follow_ups():
+    session = {"questions": [
+        {"question_id": "q1", "kind": "main"},
+        {"question_id": "q1-f", "kind": "follow_up"},
+        {"question_id": "q2", "kind": "main"},
+    ]}
+    assert questions.main_question_count(session) == 2

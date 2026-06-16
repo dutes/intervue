@@ -59,6 +59,27 @@ Rules:
 - Do not include any extra keys.
 """
 
+FOLLOWUP_PROMPT = """
+You are the interviewer. The candidate just gave a WEAK answer and you want to probe deeper
+before moving on. Generate ONE short, pointed follow-up question. Return STRICT JSON only.
+Schema:
+{
+  "question_id": "string",
+  "text": "string",
+  "round": "string",
+  "persona": "string",
+  "anchor": "string",
+  "competency": "string"
+}
+Rules:
+- Drill into the SPECIFIC gap in their answer — the missing detail, the absent metric, the vague
+  claim, or the unsupported assertion. Reference what they actually said.
+- One sentence, conversational, like a real interviewer pressing for substance
+  (e.g. "What was the actual impact in numbers?" or "What did YOU personally do there?").
+- Do not start a new topic; stay on the same question they just answered.
+- Do not include any extra keys.
+"""
+
 SCORE_PROMPT = """
 You are scoring a candidate answer using a rubric. Return STRICT JSON only.
 Schema:
