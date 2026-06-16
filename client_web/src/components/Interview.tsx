@@ -15,6 +15,7 @@ interface Question {
     competency?: string;
     number?: number;
     total?: number;
+    is_follow_up?: boolean;
 }
 
 interface Session {
@@ -28,6 +29,7 @@ interface Coaching {
     strengths: string[];
     improvements: string[];
     rewrite: string;
+    ideal_answer?: string;
 }
 
 interface StarFeedback {
@@ -262,7 +264,14 @@ export default function Interview() {
                         <Bot className="w-6 h-6 text-indigo-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-indigo-400 font-medium">AI Interviewer</p>
+                        <p className="text-sm text-indigo-400 font-medium flex items-center gap-2">
+                            AI Interviewer
+                            {currentQuestion?.is_follow_up && (
+                                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                    Follow-up
+                                </span>
+                            )}
+                        </p>
                         <p className="text-xs text-slate-500 uppercase tracking-wider">
                             {currentQuestion?.round} • {currentQuestion?.persona}
                         </p>
@@ -423,9 +432,16 @@ export default function Interview() {
                     </div>
 
                     <div>
-                        <p className="text-xs uppercase text-indigo-400 mb-1">Rewrite</p>
+                        <p className="text-xs uppercase text-indigo-400 mb-1">Your answer, rewritten</p>
                         <pre className="text-xs whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{latestFeedback.coaching.rewrite}</pre>
                     </div>
+
+                    {latestFeedback.coaching.ideal_answer && (
+                        <div className="mt-4">
+                            <p className="text-xs uppercase text-emerald-400 mb-1">Model answer</p>
+                            <pre className="text-xs whitespace-pre-wrap bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{latestFeedback.coaching.ideal_answer}</pre>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

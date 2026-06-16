@@ -284,15 +284,26 @@ async def next_question(session_id: str) -> Dict[str, Any]:
     if session.status != "active":
         raise HTTPException(status_code=400, detail="Session is not active")
 
-    index = len(session.questions)
     total = question_core.total_questions(session.start_round)
-    if index >= total:
-        raise HTTPException(status_code=400, detail="Interview already complete")
-
+    main_count = question_core.main_question_count(session.to_dict())
     api_key = SESSION_API_KEYS.get(session_id)
-    question = question_core.generate_question(session.to_dict(), index, api_key=api_key)
+
+    # If the last answer was weak, probe it with a follow-up before advancing.
+    parent = question_core.needs_follow_up(session.to_dict())
+    if parent is not None:
+        question = question_core.generate_followup(session.to_dict(), parent, api_key=api_key)
+        is_follow_up = True
+    else:
+        if main_count >= total:
+            raise HTTPException(status_code=400, detail="Interview already complete")
+        question = question_core.generate_question(session.to_dict(), main_count, api_key=api_key)
+        is_follow_up = False
+
     question_fields = ["question_id", "text", "round", "persona", "anchor", "competency"]
     parsed_question = {k: question.get(k, "") for k in question_fields}
+    parsed_question["kind"] = "follow_up" if is_follow_up else "main"
+    if is_follow_up:
+        parsed_question["parent_id"] = parent["question_id"]
     session.questions.append(parsed_question)
     session.logs.append(
         {
@@ -312,8 +323,10 @@ async def next_question(session_id: str) -> Dict[str, Any]:
         "text": question["text"],
         "anchor": question.get("anchor", ""),
         "competency": question.get("competency", ""),
-        "number": index + 1,
+        # A follow-up belongs to the current main question, so the counter holds steady.
+        "number": main_count if is_follow_up else main_count + 1,
         "total": total,
+        "is_follow_up": is_follow_up,
     }
 
 
