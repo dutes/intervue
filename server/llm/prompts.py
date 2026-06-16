@@ -59,6 +59,27 @@ Rules:
 - Do not include any extra keys.
 """
 
+FOLLOWUP_PROMPT = """
+You are the interviewer. The candidate just gave a WEAK answer and you want to probe deeper
+before moving on. Generate ONE short, pointed follow-up question. Return STRICT JSON only.
+Schema:
+{
+  "question_id": "string",
+  "text": "string",
+  "round": "string",
+  "persona": "string",
+  "anchor": "string",
+  "competency": "string"
+}
+Rules:
+- Drill into the SPECIFIC gap in their answer — the missing detail, the absent metric, the vague
+  claim, or the unsupported assertion. Reference what they actually said.
+- One sentence, conversational, like a real interviewer pressing for substance
+  (e.g. "What was the actual impact in numbers?" or "What did YOU personally do there?").
+- Do not start a new topic; stay on the same question they just answered.
+- Do not include any extra keys.
+"""
+
 SCORE_PROMPT = """
 You are scoring a candidate answer using a rubric. Return STRICT JSON only.
 Schema:
@@ -133,7 +154,8 @@ Schema:
 {
   "strengths": ["string"],
   "improvements": ["string"],
-  "rewrite": "string"
+  "rewrite": "string",
+  "ideal_answer": "string"
 }
 Rules:
 - Base every point on what the candidate ACTUALLY said; reference specific details, claims, or
@@ -142,6 +164,10 @@ Rules:
 - "rewrite" must be an improved version of the candidate's OWN answer using STAR (Situation,
   Task, Action, Result) with concrete metrics where they implied them. Keep their actual facts;
   do NOT invent achievements or experience they did not mention.
+- "ideal_answer" is different: a concise MODEL answer to this question that would score top
+  marks against the rubric — an exemplar a strong candidate might give, in STAR form with a
+  plausible concrete outcome. It is illustrative (not attributed to the candidate), so it may use
+  example specifics. Keep it tight (3-6 sentences).
 - If the answer is empty, off-topic, or too vague to assess, say so plainly in the improvements.
 """
 
@@ -164,6 +190,10 @@ Schema:
 }
 Rules:
 - overall_score should be a float 0.0-1.0
-- persona_feedback should analyze how well the candidate matched the target persona
+- Every strength and weakness MUST be grounded in the transcript: reference the specific
+  question or quote/paraphrase what the candidate actually said. Do NOT give generic feedback
+  that could apply to any candidate (e.g. avoid "good communication skills" with no evidence).
+- persona_feedback should analyze how well the candidate matched the target persona; its
+  concerns should likewise cite specific moments from the transcript.
 - next_step should be a recommendation (e.g., "Hire", "No Hire", "Follow-up")
 """

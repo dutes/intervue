@@ -25,6 +25,7 @@ interface TranscriptEntry {
     improvements: string[];
     rewrite: string;
     delivery_notes?: string[];
+    ideal_answer?: string;
 }
 
 interface PracticeDay {
@@ -357,8 +358,14 @@ export default function InterviewReport() {
                                             </div>
                                             {t.rewrite && (
                                                 <div>
-                                                    <p className="text-xs uppercase text-indigo-400 mb-1">Suggested rewrite</p>
+                                                    <p className="text-xs uppercase text-indigo-400 mb-1">Your answer, rewritten</p>
                                                     <pre className="text-xs whitespace-pre-wrap font-sans bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{t.rewrite}</pre>
+                                                </div>
+                                            )}
+                                            {t.ideal_answer && (
+                                                <div>
+                                                    <p className="text-xs uppercase text-emerald-400 mb-1">Model answer</p>
+                                                    <pre className="text-xs whitespace-pre-wrap font-sans bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300">{t.ideal_answer}</pre>
                                                 </div>
                                             )}
                                         </div>
