@@ -24,6 +24,7 @@ interface TranscriptEntry {
     strengths: string[];
     improvements: string[];
     rewrite: string;
+    delivery_notes?: string[];
     ideal_answer?: string;
 }
 
@@ -329,6 +330,14 @@ export default function InterviewReport() {
                                                 <p className="text-sm text-slate-300 whitespace-pre-wrap">{t.answer}</p>
                                             </div>
                                             {t.star_summary && <p className="text-xs text-slate-400">STAR: {t.star_summary}</p>}
+                                            {t.delivery_notes && t.delivery_notes.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs uppercase text-sky-400 mb-1">Delivery</p>
+                                                    <ul className="text-sm text-slate-300 space-y-1">
+                                                        {t.delivery_notes.map((n, i) => <li key={i}>• {n}</li>)}
+                                                    </ul>
+                                                </div>
+                                            )}
                                             <div className="grid md:grid-cols-2 gap-4">
                                                 {t.strengths.length > 0 && (
                                                     <div>

@@ -18,6 +18,7 @@ from server.core import scoring as scoring_core
 from server.core import analysis as analysis_core
 from server.core import storage as storage_core
 from server.core import coaching as coaching_core
+from server.core import delivery as delivery_core
 from server.core.state import SessionState, load_session_state
 from server.llm import dispatch
 
@@ -123,6 +124,9 @@ class StartRequest(BaseModel):
 class AnswerRequest(BaseModel):
     question_id: str
     answer_text: str = Field(min_length=1)
+    # Delivery signals from the client: seconds spent composing and whether voice input was used.
+    duration_seconds: Optional[float] = None
+    used_voice: bool = False
 
 
 class ModelsRequest(BaseModel):
@@ -339,10 +343,14 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
         scoring_core.score_answer(session.to_dict(), question, request.answer_text, persona, api_key=api_key)
         for persona in personas
     ]
+    delivery = delivery_core.analyze_delivery(
+        request.answer_text, duration_seconds=request.duration_seconds, used_voice=request.used_voice
+    )
     session.answers.append(
         {
             "question_id": request.question_id,
             "answer_text": request.answer_text,
+            "delivery": delivery,
             "timestamp": time.time(),
         }
     )
@@ -401,6 +409,7 @@ async def answer_question(session_id: str, request: AnswerRequest) -> Dict[str, 
         "competency_scores": competency_scores,
         "star_feedback": star_feedback,
         "coaching": coaching,
+        "delivery": delivery,
     }
 
 @app.post("/sessions/{session_id}/end")
