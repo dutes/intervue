@@ -188,6 +188,7 @@ def build_transcript(session: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "strengths": coaching.get("strengths", []),
                 "improvements": coaching.get("improvements", []),
                 "rewrite": coaching.get("rewrite", ""),
+                "ideal_answer": coaching.get("ideal_answer", ""),
             }
         )
     return transcript
