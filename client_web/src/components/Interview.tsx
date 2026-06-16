@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Send, User, Bot, Mic, Square, Maximize2, Minimize2 } from "lucide-react";
+import { Send, User, Bot, Mic, Square, Maximize2, Minimize2, Volume2, VolumeX } from "lucide-react";
 import ScoreRing from "./ScoreRing";
 import ThinkingIndicator, { type ThinkingPhase } from "./ThinkingIndicator";
 import { apiUrl } from "../lib/api";
+import { useQuestionVoice } from "../lib/useQuestionVoice";
 
 interface Question {
     question_id: string;
@@ -58,6 +59,16 @@ export default function Interview() {
     const [latestFeedback, setLatestFeedback] = useState<AnswerFeedback | null>(null);
     const recognitionRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const { supported: voiceSupported, enabled: voiceEnabled, toggle: toggleVoice, speak, stop: stopSpeaking } = useQuestionVoice();
+
+    // Read each new question aloud (once per question), unless we're mid "thinking".
+    useEffect(() => {
+        if (currentQuestion?.text && !phase) {
+            speak(currentQuestion.text, currentQuestion.persona);
+        }
+        // Only re-run when the question changes, not when speak()/phase identity changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentQuestion?.question_id]);
 
     useEffect(() => {
         if (!id) return;
@@ -159,6 +170,9 @@ export default function Interview() {
             return;
         }
 
+        // Don't let the interviewer talk over the candidate.
+        stopSpeaking();
+
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         recognitionRef.current = new SpeechRecognition();
         recognitionRef.current.continuous = true;
@@ -241,6 +255,16 @@ export default function Interview() {
                         <div className="text-sm text-slate-500">
                             <span className="font-mono text-slate-400">{id?.slice(0, 8)}</span>
                         </div>
+                    )}
+                    {voiceSupported && (
+                        <button
+                            onClick={toggleVoice}
+                            aria-label={voiceEnabled ? "Mute the interviewer's voice" : "Let the interviewer read questions aloud"}
+                            className="p-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
+                            title={voiceEnabled ? "Mute interviewer voice" : "Read questions aloud"}
+                        >
+                            {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                        </button>
                     )}
                     <button
                         onClick={toggleFullscreen}
