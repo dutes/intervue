@@ -280,7 +280,7 @@ export default function Interview() {
 
     return (
         <div ref={containerRef} className={`transition-all duration-300 ${isFullscreen ? "fixed inset-0 z-50 bg-slate-950 p-8 flex flex-col justify-center" : "max-w-4xl mx-auto grid gap-6 pb-20"}`}>
-            {voiceSupported && !modeChosen && (
+            {voiceSupported && !modeChosen && currentQuestion?.text && !phase && (
                 <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-8 text-center animate-in slide-in-from-bottom-4 duration-300">
                         <h2 className="font-display text-2xl font-bold tracking-tight text-white mb-1">How do you want to interview?</h2>
