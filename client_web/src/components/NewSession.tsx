@@ -1,8 +1,18 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload, FileText, Briefcase, Play, Target, AlertCircle } from "lucide-react";
+import { Upload, FileText, Briefcase, Play, Target, AlertCircle, Loader2 } from "lucide-react";
 import { apiUrl } from "../lib/api";
+
+// Shown in sequence while the session is being set up (rubric + CV analysis + persona are
+// generated server-side, which can take a while on larger models).
+const START_MESSAGES = [
+    "Reading the job spec and your CV…",
+    "Building a tailored hiring rubric…",
+    "Analyzing your CV against the role…",
+    "Assembling your interviewer panel…",
+    "Preparing your first question…",
+];
 
 const ROUND_OPTIONS = [
     { value: 1, label: "Round 1: Screening", description: "Establish baseline fit and core experience." },
@@ -88,7 +98,22 @@ export default function NewSession() {
         (providerInfo.keyMode === "required" ? !!apiKey : true) &&
         (provider === "local" ? !!baseUrl : true);
     const [loading, setLoading] = useState(false);
+    const [starting, setStarting] = useState(false);
+    const [startMsgIdx, setStartMsgIdx] = useState(0);
     const [error, setError] = useState<string | null>(null);
+
+    // Advance the status message while the session spins up (clamps on the last one).
+    useEffect(() => {
+        if (!starting) {
+            setStartMsgIdx(0);
+            return;
+        }
+        const t = setInterval(
+            () => setStartMsgIdx((i) => Math.min(i + 1, START_MESSAGES.length - 1)),
+            2800,
+        );
+        return () => clearInterval(t);
+    }, [starting]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -116,6 +141,7 @@ export default function NewSession() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setStarting(true);
         setError(null);
 
         try {
@@ -144,11 +170,22 @@ export default function NewSession() {
             setError(err.message);
         } finally {
             setLoading(false);
+            setStarting(false);
         }
     };
 
     return (
         <div className="max-w-2xl mx-auto pb-20">
+            {starting && (
+                <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="text-center max-w-sm">
+                        <Loader2 className="w-12 h-12 mx-auto text-indigo-400 animate-spin mb-5" />
+                        <h2 className="font-display text-xl font-bold text-white mb-2">Setting up your interview</h2>
+                        <p key={startMsgIdx} className="text-sm text-slate-400 animate-in fade-in duration-300">{START_MESSAGES[startMsgIdx]}</p>
+                        <p className="text-xs text-slate-600 mt-4">This can take up to a minute on larger models.</p>
+                    </div>
+                </div>
+            )}
             <div className="mb-8">
                 <h1 className="font-display text-4xl font-bold tracking-tight text-white mb-2">New Interview Session</h1>
                 <p className="text-slate-400">Configure your target role and resume to generate a custom interview.</p>
