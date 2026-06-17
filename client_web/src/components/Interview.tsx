@@ -6,6 +6,10 @@ import ThinkingIndicator, { type ThinkingPhase } from "./ThinkingIndicator";
 import { apiUrl } from "../lib/api";
 import { useQuestionVoice } from "../lib/useQuestionVoice";
 
+// Read-aloud (text-to-speech) is parked until we have higher-quality voices. Set to true to
+// re-enable the Voice/Text chooser and the header speaker icon — all the underlying code remains.
+const VOICE_ENABLED = false;
+
 interface Question {
     question_id: string;
     text: string;
@@ -74,9 +78,12 @@ export default function Interview() {
     const answerStartRef = useRef<number | null>(null);
     const usedVoiceRef = useRef<boolean>(false);
     const { supported: voiceSupported, enabled: voiceEnabled, setEnabled: setVoiceEnabled, speak, stop: stopSpeaking } = useQuestionVoice();
+    // Read-aloud is parked until we have higher-quality TTS. Flip VOICE_ENABLED back to true to
+    // restore the Voice/Text chooser and the speaker icon — all the code is intact.
+    const showVoice = voiceSupported && VOICE_ENABLED;
     // The candidate picks voice or text before the first question (the click also unlocks audio).
-    // If the browser has no speech support, skip the choice and stay in text mode.
-    const [modeChosen, setModeChosen] = useState(!voiceSupported);
+    // If voice is hidden/unsupported, skip the choice and stay in text mode.
+    const [modeChosen, setModeChosen] = useState(!showVoice);
 
     const chooseVoiceMode = () => {
         setVoiceEnabled(true);
@@ -280,7 +287,7 @@ export default function Interview() {
 
     return (
         <div ref={containerRef} className={`transition-all duration-300 ${isFullscreen ? "fixed inset-0 z-50 bg-slate-950 p-8 flex flex-col justify-center" : "max-w-4xl mx-auto grid gap-6 pb-20"}`}>
-            {voiceSupported && !modeChosen && currentQuestion?.text && !phase && (
+            {showVoice && !modeChosen && currentQuestion?.text && !phase && (
                 <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-8 text-center animate-in slide-in-from-bottom-4 duration-300">
                         <h2 className="font-display text-2xl font-bold tracking-tight text-white mb-1">How do you want to interview?</h2>
@@ -340,7 +347,7 @@ export default function Interview() {
                             <span className="font-mono text-slate-400">{id?.slice(0, 8)}</span>
                         </div>
                     )}
-                    {voiceSupported && (
+                    {showVoice && (
                         <button
                             onClick={handleVoiceToggle}
                             aria-label={voiceEnabled ? "Mute the interviewer's voice" : "Let the interviewer read questions aloud"}
