@@ -24,7 +24,12 @@ export function useQuestionVoice() {
         const assignVoices = () => {
             const englishVoices = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en"));
             if (englishVoices.length === 0) return;
-            const shuffled = [...englishVoices].sort(() => Math.random() - 0.5);
+            // Prefer LOCAL (offline) voices — on browsers like Edge the list can include hundreds
+            // of remote/online voices that are flaky or silent. Only fall back to the full list if
+            // no local voices exist.
+            const localVoices = englishVoices.filter((v) => v.localService);
+            const pool = localVoices.length > 0 ? localVoices : englishVoices;
+            const shuffled = [...pool].sort(() => Math.random() - 0.5);
             const map: Record<string, SpeechSynthesisVoice> = {};
             PERSONA_KEYS.forEach((persona, i) => {
                 map[persona] = shuffled[i % shuffled.length];
