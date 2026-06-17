@@ -288,6 +288,24 @@ async def next_question(session_id: str) -> Dict[str, Any]:
     main_count = question_core.main_question_count(session.to_dict())
     api_key = SESSION_API_KEYS.get(session_id)
 
+    # Resume: if the most recent question hasn't been answered yet (e.g. the page was
+    # refreshed or the session was reopened), return that question instead of generating a
+    # new one — otherwise we'd skip the question the candidate was on.
+    answered_ids = {a.get("question_id") for a in session.answers}
+    if session.questions and session.questions[-1].get("question_id") not in answered_ids:
+        pending = session.questions[-1]
+        return {
+            "question_id": pending.get("question_id", ""),
+            "persona": pending.get("persona", ""),
+            "round": pending.get("round", ""),
+            "text": pending.get("text", ""),
+            "anchor": pending.get("anchor", ""),
+            "competency": pending.get("competency", ""),
+            "number": main_count,
+            "total": total,
+            "is_follow_up": pending.get("kind") == "follow_up",
+        }
+
     # If the last answer was weak, probe it with a follow-up before advancing.
     parent = question_core.needs_follow_up(session.to_dict())
     if parent is not None:
