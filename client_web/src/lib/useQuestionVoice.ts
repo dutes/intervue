@@ -49,7 +49,10 @@ export function useQuestionVoice() {
         (text: string, persona: string) => {
             if (!supported || !text) return;
             const synth = window.speechSynthesis;
-            synth.cancel(); // never overlap two utterances
+            // Only cancel if something is actually playing/queued. Calling cancel() on an idle
+            // queue and immediately speak() is a known Chrome bug that silently drops the first
+            // utterance — which would break the audio unlock on the very first question.
+            if (synth.speaking || synth.pending) synth.cancel();
             synth.resume(); // Chrome can leave the queue paused; this unsticks it
             const utterance = new SpeechSynthesisUtterance(text);
             const voice = personaVoices.current[persona];
