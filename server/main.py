@@ -3,9 +3,10 @@ from __future__ import annotations
 import os
 import time
 import json
+import hashlib
 from typing import Dict, Optional, List, Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +22,7 @@ from server.core import coaching as coaching_core
 from server.core import delivery as delivery_core
 from server.core.state import SessionState, load_session_state
 from server.llm import dispatch
+from server.tts import dispatch as tts_dispatch
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -181,6 +183,14 @@ def _normalize_provider(provider: str) -> str:
     return dispatch.normalize_provider(provider)
 
 
+def _persona_name(session: SessionState, stance: str) -> str:
+    """Name of the panelist conducting this stance (falls back to the primary persona)."""
+    persona_data = session.persona or {}
+    panel = persona_data.get("panel") or {}
+    entry = panel.get(stance) or persona_data
+    return entry.get("name", "") if isinstance(entry, dict) else ""
+
+
 def _verify_provider(provider: str, api_key: Optional[str], model: Optional[str] = None, base_url: Optional[str] = None) -> None:
     provider = _normalize_provider(provider)
     if provider not in dispatch.SUPPORTED_PROVIDERS:
@@ -238,19 +248,24 @@ async def start_session(request: StartRequest) -> StartResponse:
         }
     )
 
-    # 1. Generate Persona
+    # 1. Generate the interviewer panel — three distinct named personas (one per stance), each
+    # with a name matching its assigned voice's gender. The neutral panelist doubles as the
+    # primary identity for back-compat consumers (CV analysis, grading); the full panel is
+    # nested under "panel" so it persists in the existing persona JSON column (no migration).
     try:
-        persona = analysis_core.generate_persona(request.job_spec, provider, api_key=request.api_key, model=request.model, base_url=request.base_url)
-        session.persona = persona
+        panel = analysis_core.generate_persona_panel(request.job_spec, provider, api_key=request.api_key, model=request.model, base_url=request.base_url)
+        primary = dict(panel["neutral"])
+        primary["panel"] = panel
+        session.persona = primary
         session.logs.append(
             {
                 "type": "persona",
-                "parsed": persona,
+                "parsed": primary,
                 "timestamp": time.time(),
             }
         )
     except Exception as e:
-        print(f"Error generating persona: {e}")
+        print(f"Error generating persona panel: {e}")
         # Proceed without persona, falling back to default behavior
 
     # 2. Analyze CV (requires persona)
@@ -297,6 +312,7 @@ async def next_question(session_id: str) -> Dict[str, Any]:
         return {
             "question_id": pending.get("question_id", ""),
             "persona": pending.get("persona", ""),
+            "persona_name": _persona_name(session, pending.get("persona", "")),
             "round": pending.get("round", ""),
             "text": pending.get("text", ""),
             "anchor": pending.get("anchor", ""),
@@ -337,6 +353,7 @@ async def next_question(session_id: str) -> Dict[str, Any]:
     return {
         "question_id": question["question_id"],
         "persona": question["persona"],
+        "persona_name": _persona_name(session, question["persona"]),
         "round": question["round"],
         "text": question["text"],
         "anchor": question.get("anchor", ""),
@@ -451,6 +468,47 @@ async def end_session(session_id: str) -> Dict[str, object]:
 
 
     return {"summary": summary, "report_paths": report_paths}
+
+
+TTS_CACHE_DIR = storage_core.DATA_DIR / "tts_cache"
+
+
+class TTSRequest(BaseModel):
+    text: str = Field(min_length=1)
+    # Interviewer persona, used to pick a distinct voice. Falls back to neutral.
+    persona: str = "neutral"
+
+
+@app.post("/tts")
+async def text_to_speech(request: TTSRequest) -> Response:
+    """Synthesize a question to speech. Server-side provider (Piper by default); keyless.
+
+    Returns audio bytes. Re-synthesizing the same text+persona is avoided via an on-disk
+    cache (questions get spoken again on replay / re-toggle). If the provider can't run in
+    this environment (e.g. the Piper binary isn't bundled), returns 503 so the client can
+    disable the voice UI.
+    """
+    cfg = tts_dispatch.default_config()
+    provider = cfg.get("provider", "")
+    key = hashlib.sha256(f"{provider}:{request.persona}:{request.text}".encode("utf-8")).hexdigest()
+    cache_path = TTS_CACHE_DIR / f"{key}.wav"
+    if cache_path.exists():
+        return Response(content=cache_path.read_bytes(), media_type=tts_dispatch.WAV_CONTENT_TYPE)
+
+    try:
+        audio, content_type = tts_dispatch.synthesize(cfg, request.text, request.persona)
+    except tts_dispatch.TTSUnavailable as exc:
+        raise HTTPException(status_code=503, detail=f"Text-to-speech unavailable: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=f"Text-to-speech failed: {exc}") from exc
+
+    try:
+        TTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_path.write_bytes(audio)
+    except Exception as exc:  # noqa: BLE001 — caching is best-effort
+        print(f"WARNING: failed to cache TTS audio: {exc}")
+
+    return Response(content=audio, media_type=content_type)
 
 
 @app.get("/sessions/{session_id}/report")

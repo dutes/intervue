@@ -19,8 +19,26 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (curl for the LLM clients + downloads; ca-certificates for HTTPS)
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# --- Piper local neural TTS ---
+# Bundle the Piper binary + a single multi-speaker voice (en_GB-aru-medium) so read-aloud
+# works fully offline, with no API key, inside the container. The tarball extracts to
+# /opt/piper/ (executable + bundled onnxruntime/espeak-ng libs and data).
+ARG PIPER_VERSION=2023.11.14-2
+RUN curl -sSL -o /tmp/piper.tar.gz \
+        "https://github.com/rhasspy/piper/releases/download/${PIPER_VERSION}/piper_linux_x86_64.tar.gz" \
+    && tar -xzf /tmp/piper.tar.gz -C /opt \
+    && rm /tmp/piper.tar.gz \
+    && /opt/piper/piper --help > /dev/null 2>&1 || true
+
+# Voice model + its config must sit side by side; Piper auto-loads <model>.onnx.json.
+RUN mkdir -p /app/voices \
+    && curl -sSL -o /app/voices/en_GB-aru-medium.onnx \
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/aru/medium/en_GB-aru-medium.onnx" \
+    && curl -sSL -o /app/voices/en_GB-aru-medium.onnx.json \
+        "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/aru/medium/en_GB-aru-medium.onnx.json"
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -37,7 +55,10 @@ RUN ls -R /app/web || echo "No web dir found in stage 2"
 EXPOSE 8000
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    TTS_PROVIDER=piper \
+    PIPER_BIN=/opt/piper/piper \
+    PIPER_VOICE=/app/voices/en_GB-aru-medium.onnx
 
 # Command to run the application
 CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]

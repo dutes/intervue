@@ -133,6 +133,21 @@ Rules:
 - Key concerns should be specific aspects the hiring manager would be worried about given the job spec.
 """
 
+PANEL_PERSONA_PROMPT = """
+You are designing a panel of THREE distinct interviewers for a job interview, based on the job spec. Return STRICT JSON only.
+Schema:
+{
+  "positive": {"name": "string", "role": "string", "tone": "string", "key_concerns": ["string"]},
+  "neutral":  {"name": "string", "role": "string", "tone": "string", "key_concerns": ["string"]},
+  "hostile":  {"name": "string", "role": "string", "tone": "string", "key_concerns": ["string"]}
+}
+Rules:
+- The three interviewers are DIFFERENT people with different names; together they form one hiring panel for this role.
+- "positive" is warm and encouraging; "neutral" is professional and balanced; "hostile" is skeptical and challenging.
+- Each interviewer's name MUST clearly read as the gender specified for them below — this matches their speaking voice, so a mismatch is jarring.
+- Roles and key concerns should fit the role and company culture implied by the job spec; key concerns should be specific.
+"""
+
 CV_ANALYSIS_PROMPT = """
 You are the hiring manager defined by the persona. Analyze the candidate's CV against the job spec. Return STRICT JSON only.
 Schema:
