@@ -475,8 +475,10 @@ TTS_CACHE_DIR = storage_core.DATA_DIR / "tts_cache"
 
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1)
-    # Interviewer persona, used to pick a distinct voice. Falls back to neutral.
+    # Interviewer persona (stance), used to pick a voice of the matching gender. Falls back to neutral.
     persona: str = "neutral"
+    # Session id lets the voice vary per interview (a consistent panel within a session).
+    session_id: Optional[str] = None
 
 
 @app.post("/tts")
@@ -490,13 +492,18 @@ async def text_to_speech(request: TTSRequest) -> Response:
     """
     cfg = tts_dispatch.default_config()
     provider = cfg.get("provider", "")
-    key = hashlib.sha256(f"{provider}:{request.persona}:{request.text}".encode("utf-8")).hexdigest()
+    # Cache by session too: the voice for a stance differs per session.
+    key = hashlib.sha256(
+        f"{provider}:{request.session_id}:{request.persona}:{request.text}".encode("utf-8")
+    ).hexdigest()
     cache_path = TTS_CACHE_DIR / f"{key}.wav"
     if cache_path.exists():
         return Response(content=cache_path.read_bytes(), media_type=tts_dispatch.WAV_CONTENT_TYPE)
 
     try:
-        audio, content_type = tts_dispatch.synthesize(cfg, request.text, request.persona)
+        audio, content_type = tts_dispatch.synthesize(
+            cfg, request.text, request.persona, session_id=request.session_id
+        )
     except tts_dispatch.TTSUnavailable as exc:
         raise HTTPException(status_code=503, detail=f"Text-to-speech unavailable: {exc}") from exc
     except Exception as exc:  # noqa: BLE001

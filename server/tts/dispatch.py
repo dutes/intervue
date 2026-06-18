@@ -35,15 +35,21 @@ def default_config() -> TTSConfig:
     return TTSConfig(provider=DEFAULT_TTS_PROVIDER)
 
 
-def synthesize(cfg: TTSConfig, text: str, persona: str = "neutral") -> Tuple[bytes, str]:
-    """Render ``text`` to audio bytes for the given persona. Returns (bytes, content_type)."""
+def synthesize(
+    cfg: TTSConfig, text: str, persona: str = "neutral", session_id: Optional[str] = None
+) -> Tuple[bytes, str]:
+    """Render ``text`` to audio bytes for the given persona. Returns (bytes, content_type).
+
+    ``session_id`` lets the provider pick a per-session voice (Piper varies the panel across
+    sessions); providers that don't need it ignore it.
+    """
     provider = (cfg.get("provider") or DEFAULT_TTS_PROVIDER).strip().lower()
 
     if provider == "mock":
         return mock.synthesize(text, persona), WAV_CONTENT_TYPE
     if provider == "piper":
         try:
-            return cli_piper.synthesize(text, persona), WAV_CONTENT_TYPE
+            return cli_piper.synthesize(text, persona, session_id=session_id), WAV_CONTENT_TYPE
         except cli_piper.PiperUnavailable as exc:
             raise TTSUnavailable(str(exc)) from exc
     raise ValueError(f"Unsupported TTS provider: {provider!r}")
