@@ -19,6 +19,29 @@
   font-family: var(--font-sans);
 }
 
+/* Themed scrollbars: the default browser bars (esp. the chunky light one inside textareas)
+   clash with the dark slate UI. Slim, slate-colored, transparent track to blend in. */
+* {
+  scrollbar-width: thin;                 /* Firefox */
+  scrollbar-color: #334155 transparent;  /* thumb / track (Firefox) */
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #334155;             /* slate-700 */
+  border-radius: 9999px;
+  border: 2px solid transparent;         /* inset the thumb so it reads as a slim pill */
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #475569;             /* slate-600 */
+}
+
 /* Headings rendered with the display family + tighter tracking for more character. */
 .font-display {
   font-family: var(--font-display);
