@@ -1,94 +1,109 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// The three interviewer personas; each gets its own randomly-assigned voice so a round
-// "sounds like" a consistent interviewer.
-const PERSONA_KEYS = ["positive", "neutral", "hostile"];
+import { apiUrl } from "./api";
+
+// ~10ms of silence. Played on the first user gesture to unlock autoplay so that the later,
+// asynchronous /tts playback (which resolves outside the original click) is still allowed —
+// Safari/Chrome block audio that isn't traceable to a user gesture.
+const SILENT_WAV =
+    "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 
 /**
- * Speaks interview questions aloud using the browser's built-in SpeechSynthesis API.
- * No API key, no network, works offline — the speaking counterpart to the SpeechRecognition
- * already used for answers. Hardened for Edge, Chrome and Safari quirks.
+ * Speaks interview questions aloud using the backend's local Piper TTS (server/tts) via the
+ * /tts endpoint, playing the returned WAV through a single reused <audio> element.
+ *
+ * Piper-only: there is no Web Speech fallback. If /tts is unavailable (e.g. running the API
+ * outside the Docker image, where the Piper binary isn't bundled) the request fails and the
+ * call is a no-op — voice simply doesn't play.
  */
 export function useQuestionVoice() {
-    const supported = typeof window !== "undefined" && "speechSynthesis" in window;
-    // Off until the user opts in. The opt-in click also serves as the browser "user gesture"
-    // that unlocks SpeechSynthesis (Chrome/Safari block speech before any interaction).
+    const supported = typeof window !== "undefined" && typeof Audio !== "undefined";
+    // Off until the user opts in. The opt-in click also serves as the "user gesture" that
+    // unlocks audio playback for the rest of the session.
     const [enabled, setEnabled] = useState(false);
-    const personaVoices = useRef<Record<string, SpeechSynthesisVoice | undefined>>({});
-    const keepAlive = useRef<number | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const objectUrlRef = useRef<string | null>(null);
+    const abortRef = useRef<AbortController | null>(null);
+    const unlockedRef = useRef(false);
 
-    // Voices load asynchronously (Chrome, Safari), so assign on load AND on "voiceschanged".
-    useEffect(() => {
-        if (!supported) return;
-        const synth = window.speechSynthesis;
-        const assignVoices = () => {
-            const englishVoices = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en"));
-            if (englishVoices.length === 0) return;
-            // Prefer LOCAL (offline) voices — Edge/Chrome expose many remote/online voices that can
-            // be flaky or silent. Fall back to the full list only if there are no local ones.
-            const localVoices = englishVoices.filter((v) => v.localService);
-            const pool = localVoices.length > 0 ? localVoices : englishVoices;
-            const shuffled = [...pool].sort(() => Math.random() - 0.5);
-            const map: Record<string, SpeechSynthesisVoice | undefined> = {};
-            PERSONA_KEYS.forEach((persona, i) => {
-                map[persona] = shuffled[i % shuffled.length];
-            });
-            personaVoices.current = map;
-        };
-        assignVoices();
-        synth.addEventListener("voiceschanged", assignVoices);
-        return () => {
-            synth.removeEventListener("voiceschanged", assignVoices);
-            synth.cancel();
-        };
-    }, [supported]);
+    const getAudio = useCallback(() => {
+        if (!audioRef.current) audioRef.current = new Audio();
+        return audioRef.current;
+    }, []);
 
-    const clearKeepAlive = useCallback(() => {
-        if (keepAlive.current !== null) {
-            clearInterval(keepAlive.current);
-            keepAlive.current = null;
+    const revokeUrl = useCallback(() => {
+        if (objectUrlRef.current) {
+            URL.revokeObjectURL(objectUrlRef.current);
+            objectUrlRef.current = null;
         }
     }, []);
 
     const stop = useCallback(() => {
-        clearKeepAlive();
-        if (supported) window.speechSynthesis.cancel();
-    }, [supported, clearKeepAlive]);
+        if (abortRef.current) {
+            abortRef.current.abort();
+            abortRef.current = null;
+        }
+        const audio = audioRef.current;
+        if (audio) {
+            audio.pause();
+            audio.currentTime = 0;
+        }
+        revokeUrl();
+    }, [revokeUrl]);
 
-    // Caller decides whether speaking is wanted; speak() just does it (so it can be used to
-    // speak the current question the moment the user enables voice).
+    // Caller decides whether speaking is wanted; speak() just fetches + plays (so it can be
+    // used to speak the current question the moment the user enables voice).
     const speak = useCallback(
         (text: string, persona: string) => {
             if (!supported || !text) return;
-            const synth = window.speechSynthesis;
-            clearKeepAlive();
-            // Only cancel if something is actually playing/queued — cancel() then speak() on an
-            // idle queue is a known Chrome bug that silently drops the utterance.
-            if (synth.speaking || synth.pending) synth.cancel();
-            synth.resume(); // Chrome can leave the queue paused; this unsticks it.
+            const audio = getAudio();
 
-            const utterance = new SpeechSynthesisUtterance(text);
-            let voice = personaVoices.current[persona];
-            if (!voice) {
-                // Voices may not have been ready when assigned (common on Safari) — pick one now.
-                const english = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en"));
-                voice = english.find((v) => v.localService) ?? english[0];
+            // Unlock autoplay on the first (gesture-driven) call so later async plays work.
+            if (!unlockedRef.current) {
+                unlockedRef.current = true;
+                audio.src = SILENT_WAV;
+                audio.play().catch(() => {});
             }
-            if (voice) utterance.voice = voice;
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-            utterance.onend = clearKeepAlive;
-            utterance.onerror = clearKeepAlive;
-            synth.speak(utterance);
 
-            // Chrome pauses long utterances after ~15s; nudge resume() periodically to keep going.
-            keepAlive.current = window.setInterval(() => {
-                if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
-                else clearKeepAlive();
-            }, 5000);
+            // Cancel any in-flight request and current playback before starting the new one.
+            if (abortRef.current) abortRef.current.abort();
+            const controller = new AbortController();
+            abortRef.current = controller;
+            audio.pause();
+
+            fetch(apiUrl("/tts"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, persona }),
+                signal: controller.signal,
+            })
+                .then((res) => {
+                    if (!res.ok) throw new Error(`TTS request failed: ${res.status}`);
+                    return res.blob();
+                })
+                .then((blob) => {
+                    if (controller.signal.aborted) return;
+                    revokeUrl();
+                    const url = URL.createObjectURL(blob);
+                    objectUrlRef.current = url;
+                    audio.src = url;
+                    audio.play().catch(() => {});
+                })
+                .catch((err) => {
+                    if (err?.name !== "AbortError") console.error("TTS playback error:", err);
+                });
         },
-        [supported, clearKeepAlive],
+        [supported, getAudio, revokeUrl],
     );
+
+    // Tear down on unmount: abort any request, stop audio, free the object URL.
+    useEffect(() => {
+        return () => {
+            if (abortRef.current) abortRef.current.abort();
+            if (audioRef.current) audioRef.current.pause();
+            if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+        };
+    }, []);
 
     return { supported, enabled, setEnabled, speak, stop };
 }

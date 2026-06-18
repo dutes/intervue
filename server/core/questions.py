@@ -131,13 +131,16 @@ def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], p
     # challenge). Layer it on top of the generated persona's identity so the panel both keeps a
     # consistent character and shifts its tone as the interview progresses.
     stance = persona_style(persona)
-    persona_data = session.get("persona")
-    if persona_data:
+    # Each stance is conducted by its own named panelist; fall back to the primary persona.
+    persona_data = session.get("persona") or {}
+    panel = persona_data.get("panel") or {}
+    identity = panel.get(persona) or persona_data
+    if identity:
         interviewer_identity = (
-            f"Interviewer Name: {persona_data.get('name', 'Interviewer')}\n"
-            f"Role: {persona_data.get('role', 'Hiring Manager')}\n"
-            f"Tone: {persona_data.get('tone', 'Professional')}\n"
-            f"Key Concerns: {', '.join(persona_data.get('key_concerns', []))}\n"
+            f"Interviewer Name: {identity.get('name', 'Interviewer')}\n"
+            f"Role: {identity.get('role', 'Hiring Manager')}\n"
+            f"Tone: {identity.get('tone', 'Professional')}\n"
+            f"Key Concerns: {', '.join(identity.get('key_concerns', []))}\n"
             f"Questioning stance for this round ({persona}): {stance}\n"
         )
     else:
