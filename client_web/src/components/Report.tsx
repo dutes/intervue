@@ -44,6 +44,7 @@ interface ReportData {
     overall_scores: number[];
     persona_averages: Record<string, number>;
     persona_feedback: PersonaFeedback[];
+    persona_panel?: Record<string, { name: string; role?: string }>;
     practice_plan_7_day: PracticeDay[];
     report_paths: {
         competency_radar: string;
@@ -243,14 +244,19 @@ export default function InterviewReport() {
                         const meta = PERSONA_META[p];
                         const score = report.persona_averages[p];
                         const Icon = meta.Icon;
+                        const name = report.persona_panel?.[p]?.name;
                         return (
                             <div key={p} className="border border-slate-800 rounded-xl p-4 bg-slate-950/40 flex flex-col items-center text-center">
-                                <div className="flex items-center gap-2 mb-3">
+                                <div className="flex items-center gap-2 mb-1">
                                     <span className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${meta.color}1a` }}>
                                         <Icon className="w-4 h-4" style={{ color: meta.color }} />
                                     </span>
-                                    <span className="text-sm font-semibold text-slate-200">{meta.label}</span>
+                                    <span className="text-sm font-semibold text-slate-200">{name || meta.label}</span>
                                 </div>
+                                {/* When we have the interviewer's real name, show the archetype as a sub-label. */}
+                                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: meta.color }}>
+                                    {name ? meta.label : " "}
+                                </p>
                                 <ScoreRing value={score} caption="/ 100" />
                                 <p className="text-xs text-slate-500 mt-3 leading-relaxed">{meta.blurb}</p>
                             </div>
