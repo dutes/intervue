@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Tuple
 
-from server.core.personas import persona_style
+from server.core.personas import persona_style, PANEL_STANCES
 from server.core.json_utils import parse_json_response
 from server.llm.schemas import Question
 
@@ -30,13 +30,13 @@ ROUNDS: List[Dict[str, Any]] = [
 
 DEFAULT_PERSONA = "neutral"
 
-# Each round is conducted by a different panel persona, so the candidate experiences a
-# realistic shift in questioning stance: a warm screen, a neutral deep-dive, a hostile challenge.
-ROUND_PERSONA: Dict[str, str] = {
-    "screening": "positive",
-    "deep_dive": "neutral",
-    "challenge": "hostile",
-}
+
+# The interview is a panel of three. The asking interviewer ROTATES per question so all three
+# (positive/neutral/hostile) feature in every interview, regardless of its length. The round
+# (screening/deep_dive/challenge) still drives the question's depth and goal — only the
+# interviewer rotates. Follow-ups keep their parent question's interviewer.
+def persona_for_index(index: int) -> str:
+    return PANEL_STANCES[index % len(PANEL_STANCES)]
 
 # Total budget across all rounds. Set to the sum of round counts so the interview reaches the
 # final challenge round; lower it for shorter sessions.
@@ -220,7 +220,7 @@ def _call_and_validate(prompt: str, cfg: dispatch.LLMConfig, temperature: float 
 def generate_question(session: Dict[str, Any], index: int, api_key: str | None = None) -> Dict[str, Any]:
     start_round = session.get("start_round", 1)
     round_info, _round_num = round_for_index(index, start_round)
-    persona = ROUND_PERSONA.get(round_info["name"], DEFAULT_PERSONA)
+    persona = persona_for_index(index)
     question_id = f"q{index + 1}"
 
     if dispatch.normalize_provider(session.get("provider", "")) == "mock":
