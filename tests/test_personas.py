@@ -4,9 +4,10 @@ from server.tts import cli_piper
 
 
 def test_panel_maps_stay_in_sync_with_voices():
-    # Every voiced stance must have a declared name-gender, and vice versa.
-    assert set(personas.PANEL_VOICE_GENDER) == set(cli_piper.PERSONA_SPEAKERS)
-    assert set(personas.PANEL_STANCES) == set(cli_piper.PERSONA_SPEAKERS)
+    # The name-gender map (persona side) and the voice-gender map (tts side) must agree exactly,
+    # or generated names won't match the speaking voice.
+    assert personas.PANEL_VOICE_GENDER == cli_piper.PERSONA_GENDER
+    assert set(personas.PANEL_STANCES) == set(cli_piper.PERSONA_GENDER)
 
 
 def test_panel_voice_genders_are_the_verified_values():
