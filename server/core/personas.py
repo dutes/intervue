@@ -19,3 +19,17 @@ def persona_style(persona: str) -> str:
     if not info:
         return "Professional and direct."
     return info["style"]
+
+
+# The interview panel is three distinct named interviewers, one per stance, conducted across
+# the rounds (screening=positive, deep_dive=neutral, challenge=hostile). Each stance is voiced
+# by a fixed Piper speaker (see server/tts/cli_piper.PERSONA_SPEAKERS), so the generated name
+# MUST match that voice's gender. Verified from the ARU corpus talker table:
+#   positive -> aru label 09 = Female, neutral -> label 10 = Male, hostile -> label 12 = Male.
+# If you change a speaker in cli_piper, update the matching gender here.
+PANEL_VOICE_GENDER = {
+    "positive": "female",
+    "neutral": "male",
+    "hostile": "male",
+}
+PANEL_STANCES = ["positive", "neutral", "hostile"]

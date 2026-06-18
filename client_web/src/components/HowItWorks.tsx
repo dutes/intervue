@@ -4,7 +4,7 @@ const STEPS = [
     {
         Icon: FileText,
         title: "You provide the job spec and your CV",
-        body: "Paste the role description and your résumé, and pick which round to start from.",
+        body: "Paste the role description and your résumé, and pick which round to start from — screening, deep dive, or challenge.",
     },
     {
         Icon: ListChecks,
@@ -13,8 +13,8 @@ const STEPS = [
     },
     {
         Icon: Users,
-        title: "A three-person panel interviews you",
-        body: "A supportive, a neutral, and a challenging interviewer ask questions specific to your background and score each answer against the rubric. If an answer is thin, they probe deeper with a follow-up.",
+        title: "A three-person panel interviews you across escalating rounds",
+        body: "A supportive, a neutral, and a challenging interviewer take turns asking questions specific to your background, and all three score every answer against the rubric. The interview ramps up through three rounds — a broad screening, a deeper dive, then a tougher challenge. If an answer is thin, they probe deeper with a follow-up.",
     },
     {
         Icon: MessageSquareText,

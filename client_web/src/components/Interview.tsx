@@ -6,15 +6,16 @@ import ThinkingIndicator, { type ThinkingPhase } from "./ThinkingIndicator";
 import { apiUrl } from "../lib/api";
 import { useQuestionVoice } from "../lib/useQuestionVoice";
 
-// Read-aloud (text-to-speech) is parked until we have higher-quality voices. Set to true to
-// re-enable the Voice/Text chooser and the header speaker icon — all the underlying code remains.
-const VOICE_ENABLED = false;
+// Read-aloud (text-to-speech) now uses local Piper TTS via the backend /tts endpoint
+// (see lib/useQuestionVoice). Enabled in the Docker image where the Piper binary is bundled.
+const VOICE_ENABLED = true;
 
 interface Question {
     question_id: string;
     text: string;
     round: string;
     persona: string;
+    persona_name?: string;
     anchor?: string;
     competency?: string;
     number?: number;
@@ -72,14 +73,17 @@ export default function Interview() {
     const [isRecording, setIsRecording] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [latestFeedback, setLatestFeedback] = useState<AnswerFeedback | null>(null);
+    // The question this feedback belongs to. Captured at submit time, because by the time the
+    // coaching card renders, currentQuestion has already advanced to the next question.
+    const [feedbackQuestion, setFeedbackQuestion] = useState<Question | null>(null);
     const recognitionRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     // Delivery timing: when the candidate started composing, and whether they used voice.
     const answerStartRef = useRef<number | null>(null);
     const usedVoiceRef = useRef<boolean>(false);
     const { supported: voiceSupported, enabled: voiceEnabled, setEnabled: setVoiceEnabled, speak, stop: stopSpeaking } = useQuestionVoice();
-    // Read-aloud is parked until we have higher-quality TTS. Flip VOICE_ENABLED back to true to
-    // restore the Voice/Text chooser and the speaker icon — all the code is intact.
+    // Read-aloud uses local Piper TTS (see VOICE_ENABLED above). showVoice gates the
+    // Voice/Text chooser and the header speaker icon.
     const showVoice = voiceSupported && VOICE_ENABLED;
     // The candidate picks voice or text before the first question (the click also unlocks audio).
     // If voice is hidden/unsupported, skip the choice and stay in text mode.
@@ -196,6 +200,7 @@ export default function Interview() {
             if (!res.ok) throw new Error("Failed to submit answer");
             const data = (await res.json()) as AnswerFeedback;
             setLatestFeedback(data);
+            setFeedbackQuestion(currentQuestion);
             setAnswer("");
             await fetchNextQuestion();
         } catch (err: any) {
@@ -325,7 +330,7 @@ export default function Interview() {
                     </div>
                     <div>
                         <p className="text-sm text-indigo-400 font-medium flex items-center gap-2">
-                            AI Interviewer
+                            {currentQuestion?.persona_name || "AI Interviewer"}
                             {currentQuestion?.is_follow_up && (
                                 <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
                                     Follow-up
@@ -445,10 +450,20 @@ export default function Interview() {
             </div>
 
             {latestFeedback && (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 min-w-0">
                     <div className="flex items-start justify-between gap-4 mb-3">
-                        <div>
-                            <h3 className="text-white font-semibold">Per-Answer Coaching</h3>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-white font-semibold">Per-Answer Coaching</h3>
+                                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-300 border border-slate-600/40 whitespace-nowrap">
+                                    Previous answer
+                                </span>
+                            </div>
+                            {feedbackQuestion?.text && (
+                                <p className="text-xs text-slate-400 mt-1 italic break-words">
+                                    {feedbackQuestion.number ? `Q${feedbackQuestion.number}: ` : ""}“{feedbackQuestion.text.length > 160 ? feedbackQuestion.text.slice(0, 160).trimEnd() + "…" : feedbackQuestion.text}”
+                                </p>
+                            )}
                             <p className="text-xs text-slate-500 mt-0.5 uppercase tracking-wider">Average score</p>
                         </div>
                         <ScoreRing value={latestFeedback.average_overall_score} caption="/ 100" />
