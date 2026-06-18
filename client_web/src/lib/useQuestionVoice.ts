@@ -54,7 +54,7 @@ export function useQuestionVoice() {
     // Caller decides whether speaking is wanted; speak() just fetches + plays (so it can be
     // used to speak the current question the moment the user enables voice).
     const speak = useCallback(
-        (text: string, persona: string) => {
+        (text: string, persona: string, sessionId?: string) => {
             if (!supported || !text) return;
             const audio = getAudio();
 
@@ -74,7 +74,7 @@ export function useQuestionVoice() {
             fetch(apiUrl("/tts"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text, persona }),
+                body: JSON.stringify({ text, persona, session_id: sessionId }),
                 signal: controller.signal,
             })
                 .then((res) => {

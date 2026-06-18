@@ -92,7 +92,7 @@ export default function Interview() {
     const chooseVoiceMode = () => {
         setVoiceEnabled(true);
         setModeChosen(true);
-        if (currentQuestion?.text) speak(currentQuestion.text, currentQuestion.persona);
+        if (currentQuestion?.text) speak(currentQuestion.text, currentQuestion.persona, id);
     };
     const chooseTextMode = () => {
         setVoiceEnabled(false);
@@ -102,7 +102,7 @@ export default function Interview() {
         const next = !voiceEnabled;
         setVoiceEnabled(next);
         if (next) {
-            if (currentQuestion?.text) speak(currentQuestion.text, currentQuestion.persona);
+            if (currentQuestion?.text) speak(currentQuestion.text, currentQuestion.persona, id);
         } else {
             stopSpeaking();
         }
@@ -111,7 +111,7 @@ export default function Interview() {
     // Read each new question aloud (once per question) when voice is on and we're not "thinking".
     useEffect(() => {
         if (voiceEnabled && currentQuestion?.text && !phase) {
-            speak(currentQuestion.text, currentQuestion.persona);
+            speak(currentQuestion.text, currentQuestion.persona, id);
         }
         // Reset delivery timing for the new question.
         answerStartRef.current = null;

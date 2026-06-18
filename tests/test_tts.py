@@ -39,16 +39,34 @@ def test_unsupported_provider_raises():
         dispatch.synthesize(dispatch.TTSConfig(provider="bogus"), "hi", "neutral")
 
 
-# This is the load-bearing mapping: Piper's --speaker is a 0-based index into the model's
-# speaker_id_map, NOT the dataset label. Brian picked aru labels 09/10/12, which translate to
-# indices 4/2/8. Passing the labels directly (esp. 12) would exceed the max valid index (11).
-def test_piper_persona_speaker_indices():
-    assert cli_piper.PERSONA_SPEAKERS == {"positive": 4, "neutral": 2, "hostile": 8}
-    assert max(cli_piper.PERSONA_SPEAKERS.values()) <= 11
+def test_persona_gender_mapping():
+    # positive=female, neutral/hostile=male — must match the generated interviewer name's gender.
+    assert cli_piper.PERSONA_GENDER == {"positive": "female", "neutral": "male", "hostile": "male"}
 
 
-def test_piper_unknown_persona_falls_back_to_neutral_speaker():
-    assert cli_piper.DEFAULT_SPEAKER == cli_piper.PERSONA_SPEAKERS["neutral"]
+def test_speaker_pools_are_nonempty_and_gender_disjoint():
+    assert cli_piper.FEMALE_SPEAKERS and cli_piper.MALE_SPEAKERS
+    assert not (set(cli_piper.FEMALE_SPEAKERS) & set(cli_piper.MALE_SPEAKERS))
+
+
+def test_speakers_for_session_is_deterministic_and_gender_correct():
+    a = cli_piper.speakers_for_session("session-xyz")
+    b = cli_piper.speakers_for_session("session-xyz")
+    assert a == b  # same session -> same panel
+    assert set(a) == {"positive", "neutral", "hostile"}
+    assert a["positive"] in cli_piper.FEMALE_SPEAKERS  # name is female -> female voice
+    assert a["neutral"] in cli_piper.MALE_SPEAKERS and a["hostile"] in cli_piper.MALE_SPEAKERS
+    assert a["neutral"] != a["hostile"]  # two distinct male voices
+
+
+def test_speakers_for_session_varies_across_sessions():
+    positives = {cli_piper.speakers_for_session(f"s{i}")["positive"] for i in range(20)}
+    assert len(positives) > 1  # different interviews don't all sound identical
+
+
+def test_default_speaker_matches_stance_gender():
+    assert cli_piper.default_speaker("positive") in cli_piper.FEMALE_SPEAKERS
+    assert cli_piper.default_speaker("hostile") in cli_piper.MALE_SPEAKERS
 
 
 def test_normalize_for_speech_strips_markdown_and_collapses_whitespace():
