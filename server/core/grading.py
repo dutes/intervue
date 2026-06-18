@@ -4,26 +4,34 @@ import json
 from typing import Any, Dict, List
 
 from server.core import state
+from server.core.json_utils import parse_json_response
 from server.llm import dispatch, prompts
 from server.llm.schemas import ReportSummary
 
 
-def _call_llm_with_retries(prompt: str, cfg: dispatch.LLMConfig, fix_prompt: str) -> Dict[str, Any]:
-    """Helper to call LLM and parse JSON, similar to analysis.py"""
-    last_exc = None
-    for _ in range(3):
+def _generate_report_with_retries(prompt: str, cfg: dispatch.LLMConfig, attempts: int = 3) -> Dict[str, Any]:
+    """Call the LLM and parse + validate into a ReportSummary, retrying on failure with the
+    error and previous (invalid) output fed back — so a flaky model gets a real chance to
+    self-correct rather than just re-rolling the same prompt. Uses the shared, lenient JSON
+    parser (handles code fences / stray prose) instead of a naive strip."""
+    last_error = None
+    last_raw = ""
+    current = prompt
+    for _ in range(attempts):
         try:
-            raw = dispatch.call_llm(cfg, prompt)
-            # Basic cleanup
-            raw = raw.replace("```json", "").replace("```", "").strip()
-            return json.loads(raw)
-        except Exception as e:
-            last_exc = e
-            # If JSON decode error, we could try to feed it back to LLM to fix,
-            # but for now we just retry the generation or fail.
-            print(f"LLM generation failed: {e}")
-
-    raise RuntimeError(f"Failed to generate valid JSON after retries: {last_exc}")
+            last_raw = dispatch.call_llm(cfg, current)
+            parsed = parse_json_response(last_raw)
+            return ReportSummary.model_validate(parsed).model_dump()
+        except Exception as exc:  # noqa: BLE001
+            last_error = str(exc)
+            print(f"Report generation attempt failed: {exc}")
+            current = (
+                f"{prompts.JSON_FIX_PROMPT}\n\n"
+                f"Error: {last_error}\n\n"
+                f"Your previous output (invalid):\n{last_raw}\n\n"
+                f"Regenerate, strictly following the original request below.\n\n{prompt}"
+            )
+    raise RuntimeError(f"Failed to generate a valid report after {attempts} attempts: {last_error}")
 
 
 
@@ -95,12 +103,9 @@ def generate_report(session_data: Dict[str, Any], api_key: str | None = None) ->
     cfg = dispatch.config_from_session(session_data, api_key=api_key)
 
     try:
-        raw_data = _call_llm_with_retries(prompt, cfg, prompts.JSON_FIX_PROMPT)
-        # Validate against schema
-        report = ReportSummary.model_validate(raw_data)
-        return report.model_dump()
+        return _generate_report_with_retries(prompt, cfg)
     except Exception as exc:
         print(f"Error generating report: {exc}")
-        # Return a fallback or re-raise
+        # build_report catches this and falls back to heuristic scoring.
         raise RuntimeError(f"Failed to generate report: {exc}") from exc
 

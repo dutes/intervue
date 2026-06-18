@@ -46,3 +46,21 @@ def test_build_transcript_skips_unanswered_questions(sample_session):
     )
     transcript = reports.build_transcript(sample_session)
     assert [entry["question_id"] for entry in transcript] == ["q1"]
+
+
+def test_persona_panel_names_extracts_named_panel():
+    session = {"persona": {"name": "Alex Mercer", "panel": {
+        "positive": {"name": "Hannah Lewis", "role": "Engineering Manager"},
+        "neutral": {"name": "Alex Mercer", "role": "Senior EM"},
+        "hostile": {"name": "Daniel Cole", "role": "Principal Engineer"},
+    }}}
+    panel = reports.persona_panel_names(session)
+    assert set(panel) == {"positive", "neutral", "hostile"}
+    assert panel["positive"]["name"] == "Hannah Lewis"
+    assert panel["hostile"]["role"] == "Principal Engineer"
+
+
+def test_persona_panel_names_empty_without_panel():
+    # Sessions predating the named-panel feature (or with no persona) yield no names.
+    assert reports.persona_panel_names({"persona": {"name": "Solo"}}) == {}
+    assert reports.persona_panel_names({}) == {}
