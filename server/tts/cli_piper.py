@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import re
 import subprocess
 from typing import Dict
 
@@ -34,6 +35,25 @@ PIPER_BIN = os.getenv("PIPER_BIN", "piper")
 PIPER_VOICE = os.getenv("PIPER_VOICE", "/app/voices/en_GB-aru-medium.onnx")
 # Synthesis of a short question is fast on CPU, but allow headroom + env tuning.
 REQUEST_TIMEOUT = int(os.getenv("TTS_REQUEST_TIMEOUT", "60"))
+
+# Prosody/quality knobs (env-tunable, passed straight to the binary). length_scale > 1 slows
+# speech slightly for clarity; sentence_silence inserts a pause between sentences. These nudge
+# the medium voice toward a calmer, more natural interview cadence than the bare defaults
+# (length 1.0 / silence 0.2). noise_scale/noise_w are Piper's expressiveness defaults.
+LENGTH_SCALE = os.getenv("PIPER_LENGTH_SCALE", "1.05")
+NOISE_SCALE = os.getenv("PIPER_NOISE_SCALE", "0.667")
+NOISE_W = os.getenv("PIPER_NOISE_W", "0.8")
+SENTENCE_SILENCE = os.getenv("PIPER_SENTENCE_SILENCE", "0.3")
+
+# Markdown / formatting characters espeak-ng would otherwise read aloud or stumble over.
+_SPEECH_NOISE = re.compile(r"[*_`#>|]+")
+
+
+def _normalize_for_speech(text: str) -> str:
+    """Light cleanup so the voice reads cleanly: drop markdown marks and collapse whitespace.
+    Sentence punctuation is preserved so Piper keeps natural prosody and inter-sentence pauses."""
+    cleaned = _SPEECH_NOISE.sub(" ", text)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 class PiperUnavailable(RuntimeError):
@@ -64,11 +84,15 @@ def synthesize(text: str, persona: str = "neutral") -> bytes:
         binary,
         "--model", PIPER_VOICE,
         "--speaker", str(speaker),
+        "--length_scale", LENGTH_SCALE,
+        "--noise_scale", NOISE_SCALE,
+        "--noise_w", NOISE_W,
+        "--sentence_silence", SENTENCE_SILENCE,
         "--output_file", "-",  # write WAV to stdout
     ]
     result = subprocess.run(
         cmd,
-        input=text.encode("utf-8"),
+        input=_normalize_for_speech(text).encode("utf-8"),
         capture_output=True,
         timeout=REQUEST_TIMEOUT,
         check=False,
