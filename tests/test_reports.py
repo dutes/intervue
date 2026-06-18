@@ -64,3 +64,16 @@ def test_persona_panel_names_empty_without_panel():
     # Sessions predating the named-panel feature (or with no persona) yield no names.
     assert reports.persona_panel_names({"persona": {"name": "Solo"}}) == {}
     assert reports.persona_panel_names({}) == {}
+
+
+def test_build_report_headline_score_is_the_numeric_average(sample_session, monkeypatch):
+    # Avoid rendering real charts / writing files in a unit test.
+    monkeypatch.setattr(reports, "generate_charts", lambda *a, **k: {})
+    monkeypatch.setattr(reports, "save_report", lambda *a, **k: None)
+
+    payload, _paths = reports.build_report(sample_session)
+
+    # q1's only score is 75 -> numeric average 75.0 is the headline, NOT the mock grader's 85.
+    assert payload["overall_score"] == 75.0
+    # Qualitative fields still come from grading (mock provider here).
+    assert "Clear communication" in payload["strengths"]
