@@ -14,10 +14,11 @@ const START_MESSAGES = [
     "Preparing your first question…",
 ];
 
+// Rounds are an escalating difficulty arc; starting later skips ahead to a harder stage.
 const ROUND_OPTIONS = [
-    { value: 1, label: "Round 1: Screening", description: "Establish baseline fit and core experience." },
-    { value: 2, label: "Round 2: Deep Dive", description: "Explore depth, impact, and technical decision-making." },
-    { value: 3, label: "Round 3: Challenge", description: "Stress-test claims and assess judgment under pressure." },
+    { value: 1, label: "Round 1: Screening", description: "Warm-up — broad questions on your core experience and fit." },
+    { value: 2, label: "Round 2: Deep Dive", description: "Harder — probes the depth, impact, and decisions behind your strongest claims." },
+    { value: 3, label: "Round 3: Challenge", description: "Toughest — stress-tests your claims, trade-offs, and judgment under pressure." },
 ];
 
 const PROVIDERS = [

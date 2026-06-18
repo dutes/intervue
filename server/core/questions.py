@@ -7,24 +7,27 @@ from server.core.personas import persona_style, PANEL_STANCES
 from server.core.json_utils import parse_json_response
 from server.llm.schemas import Question
 
+# Rounds are an escalating difficulty arc. The interviewer rotates per question (see
+# persona_for_index); the ROUND controls how hard/deep the question is, and the goal text is
+# fed to the LLM so questions genuinely ramp up across the interview.
 ROUNDS: List[Dict[str, Any]] = [
     {
         "name": "screening",
         "label": "Round 1",
         "count": 3,
-        "goal": "Establish baseline fit and core experience.",
+        "goal": "Stage 1 of 3 (warm-up): establish baseline fit and surface core experience with broad, approachable questions.",
     },
     {
         "name": "deep_dive",
         "label": "Round 2",
         "count": 4,
-        "goal": "Explore depth, impact, and technical decision-making.",
+        "goal": "Stage 2 of 3 (harder than screening): probe the depth, impact, and technical decision-making behind the candidate's strongest claims.",
     },
     {
         "name": "challenge",
         "label": "Round 3",
         "count": 3,
-        "goal": "Stress-test claims and assess judgment under pressure.",
+        "goal": "Stage 3 of 3 (hardest): stress-test claims, push on trade-offs, edge cases, inconsistencies, and judgment under pressure.",
     },
 ]
 
@@ -127,9 +130,9 @@ def _previous_qa_block(session: Dict[str, Any]) -> str:
 def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], persona: str, question_id: str, index: int = 0) -> str:
     rubric_json = json.dumps(session["rubric"], indent=2)
 
-    # The questioning stance rotates per round (warm screen -> neutral deep-dive -> hostile
-    # challenge). Layer it on top of the generated persona's identity so the panel both keeps a
-    # consistent character and shifts its tone as the interview progresses.
+    # The asking interviewer rotates per question across the three-person panel (supportive,
+    # neutral, challenging); the round (below) controls difficulty, not tone. Layer the rotating
+    # interviewer's identity onto the question.
     stance = persona_style(persona)
     # Each stance is conducted by its own named panelist; fall back to the primary persona.
     persona_data = session.get("persona") or {}
@@ -141,7 +144,7 @@ def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], p
             f"Role: {identity.get('role', 'Hiring Manager')}\n"
             f"Tone: {identity.get('tone', 'Professional')}\n"
             f"Key Concerns: {', '.join(identity.get('key_concerns', []))}\n"
-            f"Questioning stance for this round ({persona}): {stance}\n"
+            f"Questioning stance for THIS question ({persona}): {stance}\n"
         )
     else:
         interviewer_identity = f"Persona: {persona} ({stance})\n"
