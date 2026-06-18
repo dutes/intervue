@@ -95,6 +95,38 @@ def test_needs_follow_up_respects_global_cap():
     assert questions.needs_follow_up(session) is None
 
 
+def test_generate_question_pins_server_side_stance(monkeypatch):
+    """The LLM must not control the persona stance — it tends to echo the interviewer name,
+    which would break voice selection and the per-stance panel lookup."""
+    import json as _json
+
+    # The model returns a NAME in "persona" (and a bogus id/round) — all should be overridden.
+    fake_llm_output = _json.dumps({
+        "question_id": "llm-made-up-id",
+        "text": "Tell me about a release you owned.",
+        "round": "wrong_round",
+        "persona": "Siobhán Gallagher",
+        "anchor": "a recent project",
+        "competency": "Release Readiness",
+    })
+    monkeypatch.setattr(questions.dispatch, "call_llm", lambda *a, **k: fake_llm_output)
+
+    session = {
+        "session_id": "s1",
+        "provider": "openai",  # non-mock -> exercises the LLM path
+        "start_round": 1,
+        "job_spec": "Lead QA Manager for mobile apps.",
+        "cv_text": "Built a mobile client with 20M downloads.",
+        "rubric": {"competencies": [{"name": "Release Readiness", "weight": 1.0,
+                                     "what_good_looks_like": "x", "red_flags": ["y"]}]},
+    }
+    # index 0 -> screening round -> "positive" stance.
+    payload = questions.generate_question(session, index=0)
+    assert payload["persona"] == "positive"
+    assert payload["question_id"] == "q1"
+    assert payload["round"] == "screening"
+
+
 def test_main_question_count_excludes_follow_ups():
     session = {"questions": [
         {"question_id": "q1", "kind": "main"},

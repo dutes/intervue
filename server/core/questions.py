@@ -234,7 +234,14 @@ def generate_question(session: Dict[str, Any], index: int, api_key: str | None =
         f"{build_question_prompt(session, round_info, persona, question_id, index)}"
     )
     cfg = dispatch.config_from_session(session, api_key=api_key)
-    return _call_and_validate(prompt, cfg, temperature=QUESTION_TEMPERATURE)
+    payload = _call_and_validate(prompt, cfg, temperature=QUESTION_TEMPERATURE)
+    # Identity fields are decided server-side by the round; never trust the LLM's values here.
+    # The model tends to echo the interviewer's NAME into "persona", which breaks voice
+    # selection (cli_piper maps the stance, not a name) and the per-stance panel lookup.
+    payload["persona"] = persona
+    payload["question_id"] = question_id
+    payload["round"] = round_info["name"]
+    return payload
 
 
 def _question_kind(question: Dict[str, Any]) -> str:
