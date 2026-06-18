@@ -69,12 +69,32 @@ function panelInsight(pa: Record<string, number>): string | null {
     return "Your performance held steady across friendly and hostile interviewers — a sign of composure under pressure.";
 }
 
-// Color the hiring verdict pill. "No Hire" must be checked before "Hire".
+// next_step is meant to be a short recommendation ("Hire" / "No Hire" / "Follow-up") but the
+// model often returns a full paragraph that *starts* with the verdict. Extract a short label
+// for the pill so we never stuff a paragraph into a rounded-full badge. Order matters:
+// "No Hire" and "Follow-up" must be checked before the bare "hire" match.
+function verdictLabel(nextStep: string): string {
+    const s = (nextStep || "").trim().toLowerCase();
+    if (!s) return "";
+    if (/\bno[\s-]?hire\b/.test(s) || s.startsWith("no ")) return "No Hire";
+    if (/\bstrong hire\b/.test(s)) return "Strong Hire";
+    if (/\bfollow[\s-]?up\b/.test(s)) return "Follow-up";
+    if (/\bhire\b/.test(s)) return "Hire";
+    return "";
+}
+
+// Color the verdict pill based on the extracted label (not a naive substring of the paragraph).
 function verdictClass(nextStep: string): string {
-    const s = (nextStep || "").toLowerCase();
-    if (s.includes("no")) return "text-danger border-danger/30 bg-danger/10";
-    if (s.includes("hire")) return "text-success border-success/30 bg-success/10";
-    return "text-warn border-warn/30 bg-warn/10";
+    const label = verdictLabel(nextStep);
+    if (label === "No Hire") return "text-danger border-danger/30 bg-danger/10";
+    if (label === "Hire" || label === "Strong Hire") return "text-success border-success/30 bg-success/10";
+    return "text-warn border-warn/30 bg-warn/10"; // Follow-up / unknown
+}
+
+// Strip a leading verdict prefix ("Follow-up —", "Hire:" ...) from the narrative, since the
+// verdict is already shown as a pill — avoids "Follow-up — Follow-up ...".
+function recommendationBody(nextStep: string): string {
+    return (nextStep || "").replace(/^\s*(strong hire|no[\s-]?hire|follow[\s-]?up|hire)\s*[—\-:]\s*/i, "").trim();
 }
 
 export default function InterviewReport() {
@@ -248,19 +268,38 @@ export default function InterviewReport() {
                         <h4 className="text-sm font-semibold text-slate-200 mb-1">Hiring verdict</h4>
                         <p className="text-xs text-slate-500 mb-3">The interviewer's recommendation and any remaining concerns.</p>
                         <div className="grid gap-3">
-                            {report.persona_feedback.map((feedback, idx) => (
-                                <div key={idx} className="border border-slate-800 rounded-xl p-4 bg-slate-950/40">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded">{feedback.persona}</span>
-                                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${verdictClass(feedback.next_step)}`}>{feedback.next_step}</span>
+                            {report.persona_feedback.map((feedback, idx) => {
+                                const verdict = verdictLabel(feedback.next_step);
+                                const body = recommendationBody(feedback.next_step);
+                                const showBody = body.length > 24;
+                                return (
+                                    <div key={idx} className="border border-slate-800 rounded-xl p-4 bg-slate-950/40">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-sm font-semibold text-slate-200 min-w-0">{feedback.persona}</span>
+                                            {verdict && (
+                                                <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full border ${verdictClass(feedback.next_step)}`}>{verdict}</span>
+                                            )}
+                                        </div>
+                                        {feedback.positives?.length > 0 && (
+                                            <ul className="text-sm text-slate-300 space-y-1 mt-3">
+                                                {feedback.positives.map((p, i) => (
+                                                    <li key={i} className="flex gap-2"><span className="text-success shrink-0">+</span><span>{p}</span></li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                        {feedback.concerns?.length > 0 && (
+                                            <ul className="text-sm text-slate-300 space-y-1 mt-2">
+                                                {feedback.concerns.map((c, i) => (
+                                                    <li key={i} className="flex gap-2"><span className="text-warn shrink-0">!</span><span>{c}</span></li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                        {showBody && (
+                                            <p className="text-sm text-slate-400 mt-3 leading-relaxed">{body}</p>
+                                        )}
                                     </div>
-                                    {feedback.concerns.length > 0 && (
-                                        <ul className="text-sm text-slate-300 space-y-1 mt-3">
-                                            {feedback.concerns.map((c, i) => <li key={i}>• {c}</li>)}
-                                        </ul>
-                                    )}
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 )}

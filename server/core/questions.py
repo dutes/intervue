@@ -3,40 +3,43 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Tuple
 
-from server.core.personas import persona_style
+from server.core.personas import persona_style, PANEL_STANCES
 from server.core.json_utils import parse_json_response
 from server.llm.schemas import Question
 
+# Rounds are an escalating difficulty arc. The interviewer rotates per question (see
+# persona_for_index); the ROUND controls how hard/deep the question is, and the goal text is
+# fed to the LLM so questions genuinely ramp up across the interview.
 ROUNDS: List[Dict[str, Any]] = [
     {
         "name": "screening",
         "label": "Round 1",
         "count": 3,
-        "goal": "Establish baseline fit and core experience.",
+        "goal": "Stage 1 of 3 (warm-up): establish baseline fit and surface core experience with broad, approachable questions.",
     },
     {
         "name": "deep_dive",
         "label": "Round 2",
         "count": 4,
-        "goal": "Explore depth, impact, and technical decision-making.",
+        "goal": "Stage 2 of 3 (harder than screening): probe the depth, impact, and technical decision-making behind the candidate's strongest claims.",
     },
     {
         "name": "challenge",
         "label": "Round 3",
         "count": 3,
-        "goal": "Stress-test claims and assess judgment under pressure.",
+        "goal": "Stage 3 of 3 (hardest): stress-test claims, push on trade-offs, edge cases, inconsistencies, and judgment under pressure.",
     },
 ]
 
 DEFAULT_PERSONA = "neutral"
 
-# Each round is conducted by a different panel persona, so the candidate experiences a
-# realistic shift in questioning stance: a warm screen, a neutral deep-dive, a hostile challenge.
-ROUND_PERSONA: Dict[str, str] = {
-    "screening": "positive",
-    "deep_dive": "neutral",
-    "challenge": "hostile",
-}
+
+# The interview is a panel of three. The asking interviewer ROTATES per question so all three
+# (positive/neutral/hostile) feature in every interview, regardless of its length. The round
+# (screening/deep_dive/challenge) still drives the question's depth and goal — only the
+# interviewer rotates. Follow-ups keep their parent question's interviewer.
+def persona_for_index(index: int) -> str:
+    return PANEL_STANCES[index % len(PANEL_STANCES)]
 
 # Total budget across all rounds. Set to the sum of round counts so the interview reaches the
 # final challenge round; lower it for shorter sessions.
@@ -127,18 +130,21 @@ def _previous_qa_block(session: Dict[str, Any]) -> str:
 def build_question_prompt(session: Dict[str, Any], round_info: Dict[str, Any], persona: str, question_id: str, index: int = 0) -> str:
     rubric_json = json.dumps(session["rubric"], indent=2)
 
-    # The questioning stance rotates per round (warm screen -> neutral deep-dive -> hostile
-    # challenge). Layer it on top of the generated persona's identity so the panel both keeps a
-    # consistent character and shifts its tone as the interview progresses.
+    # The asking interviewer rotates per question across the three-person panel (supportive,
+    # neutral, challenging); the round (below) controls difficulty, not tone. Layer the rotating
+    # interviewer's identity onto the question.
     stance = persona_style(persona)
-    persona_data = session.get("persona")
-    if persona_data:
+    # Each stance is conducted by its own named panelist; fall back to the primary persona.
+    persona_data = session.get("persona") or {}
+    panel = persona_data.get("panel") or {}
+    identity = panel.get(persona) or persona_data
+    if identity:
         interviewer_identity = (
-            f"Interviewer Name: {persona_data.get('name', 'Interviewer')}\n"
-            f"Role: {persona_data.get('role', 'Hiring Manager')}\n"
-            f"Tone: {persona_data.get('tone', 'Professional')}\n"
-            f"Key Concerns: {', '.join(persona_data.get('key_concerns', []))}\n"
-            f"Questioning stance for this round ({persona}): {stance}\n"
+            f"Interviewer Name: {identity.get('name', 'Interviewer')}\n"
+            f"Role: {identity.get('role', 'Hiring Manager')}\n"
+            f"Tone: {identity.get('tone', 'Professional')}\n"
+            f"Key Concerns: {', '.join(identity.get('key_concerns', []))}\n"
+            f"Questioning stance for THIS question ({persona}): {stance}\n"
         )
     else:
         interviewer_identity = f"Persona: {persona} ({stance})\n"
@@ -217,7 +223,7 @@ def _call_and_validate(prompt: str, cfg: dispatch.LLMConfig, temperature: float 
 def generate_question(session: Dict[str, Any], index: int, api_key: str | None = None) -> Dict[str, Any]:
     start_round = session.get("start_round", 1)
     round_info, _round_num = round_for_index(index, start_round)
-    persona = ROUND_PERSONA.get(round_info["name"], DEFAULT_PERSONA)
+    persona = persona_for_index(index)
     question_id = f"q{index + 1}"
 
     if dispatch.normalize_provider(session.get("provider", "")) == "mock":
@@ -231,7 +237,14 @@ def generate_question(session: Dict[str, Any], index: int, api_key: str | None =
         f"{build_question_prompt(session, round_info, persona, question_id, index)}"
     )
     cfg = dispatch.config_from_session(session, api_key=api_key)
-    return _call_and_validate(prompt, cfg, temperature=QUESTION_TEMPERATURE)
+    payload = _call_and_validate(prompt, cfg, temperature=QUESTION_TEMPERATURE)
+    # Identity fields are decided server-side by the round; never trust the LLM's values here.
+    # The model tends to echo the interviewer's NAME into "persona", which breaks voice
+    # selection (cli_piper maps the stance, not a name) and the per-stance panel lookup.
+    payload["persona"] = persona
+    payload["question_id"] = question_id
+    payload["round"] = round_info["name"]
+    return payload
 
 
 def _question_kind(question: Dict[str, Any]) -> str:
