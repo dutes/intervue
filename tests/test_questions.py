@@ -28,10 +28,11 @@ def test_round_for_index(index, expected_round):
     assert round_info["name"] == expected_round
 
 
-def test_persona_rotates_per_round():
-    assert questions.ROUND_PERSONA["screening"] == "positive"
-    assert questions.ROUND_PERSONA["deep_dive"] == "neutral"
-    assert questions.ROUND_PERSONA["challenge"] == "hostile"
+def test_persona_rotates_per_question():
+    # The interviewer rotates per question so all three panelists feature in every interview.
+    assert [questions.persona_for_index(i) for i in range(5)] == [
+        "positive", "neutral", "hostile", "positive", "neutral",
+    ]
 
 
 def test_target_competency_is_highest_weight_first(sample_session):
