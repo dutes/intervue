@@ -195,6 +195,19 @@ def build_transcript(session: Dict[str, Any]) -> List[Dict[str, Any]]:
     return transcript
 
 
+def persona_panel_names(session: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+    """The named interviewer per stance, so the report can credit real names rather than just
+    the archetype labels. Empty if the session predates the named-panel feature."""
+    persona = session.get("persona") or {}
+    panel = persona.get("panel") or {}
+    out: Dict[str, Dict[str, str]] = {}
+    for stance in ("positive", "neutral", "hostile"):
+        entry = panel.get(stance) or {}
+        if isinstance(entry, dict) and entry.get("name"):
+            out[stance] = {"name": entry.get("name", ""), "role": entry.get("role", "")}
+    return out
+
+
 def build_report(session: Dict[str, Any], api_key: str | None = None) -> Tuple[Dict[str, Any], Dict[str, str]]:
     scores = session.get("scores", [])
     overall_scores = compute_question_overall_scores(scores)
@@ -235,6 +248,7 @@ def build_report(session: Dict[str, Any], api_key: str | None = None) -> Tuple[D
         "overall_scores": overall_scores,
         "persona_averages": persona_avgs,
         "persona_feedback": persona_feedback,
+        "persona_panel": persona_panel_names(session),
         "practice_plan_7_day": practice_plan,
         "report_paths": report_paths,
     }
