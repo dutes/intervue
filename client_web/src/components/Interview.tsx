@@ -469,9 +469,37 @@ export default function Interview() {
                         <ScoreRing value={latestFeedback.average_overall_score} caption="/ 100" />
                     </div>
                     <p className="text-sm text-slate-300 mb-2">STAR feedback: <span className="text-slate-200">{latestFeedback.star_feedback.summary}</span></p>
-                    <p className="text-xs text-slate-500 mb-4">
-                        STAR complete: {String(latestFeedback.star_feedback.star_complete)} | Metrics: {String(latestFeedback.star_feedback.metrics_present)} | Specificity: {latestFeedback.star_feedback.specificity}
-                    </p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {[
+                            { label: "STAR structure", ok: latestFeedback.star_feedback.star_complete },
+                            { label: "Concrete metrics", ok: latestFeedback.star_feedback.metrics_present },
+                        ].map(({ label, ok }) => (
+                            <span
+                                key={label}
+                                className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border ${
+                                    ok ? "bg-success/10 text-success border-success/30" : "bg-slate-800 text-slate-400 border-slate-700"
+                                }`}
+                            >
+                                {ok ? "✓" : "✗"} {label}
+                            </span>
+                        ))}
+                        {(() => {
+                            const spec = latestFeedback.star_feedback.specificity;
+                            const labels = ["Vague", "Low detail", "Specific", "Highly specific"];
+                            const specLabel = labels[Math.max(0, Math.min(3, spec))] ?? `${spec}/3`;
+                            const specClass =
+                                spec >= 2
+                                    ? "bg-success/10 text-success border-success/30"
+                                    : spec === 1
+                                    ? "bg-warn/10 text-warn border-warn/30"
+                                    : "bg-slate-800 text-slate-400 border-slate-700";
+                            return (
+                                <span className={`inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full border ${specClass}`}>
+                                    Specificity: {specLabel}
+                                </span>
+                            );
+                        })()}
+                    </div>
 
                     {latestFeedback.delivery && (
                         <div className="mb-4 bg-slate-950/40 border border-slate-800 rounded-xl p-3">

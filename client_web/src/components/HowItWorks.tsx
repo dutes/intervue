@@ -67,7 +67,7 @@ export default function HowItWorks({ open, onClose }: { open: boolean; onClose: 
                 <div className="mt-6 pt-5 border-t border-slate-800 space-y-3">
                     <p className="text-sm text-slate-400">
                         <span className="text-slate-200 font-medium">Bring your own model.</span> Choose OpenAI, Anthropic (Claude),
-                        Google (Gemini), a local model, or Mock. Your API key is used only for your session and never leaves your machine.
+                        Google (Gemini), a local model, or Mock. Your API key is never stored — it's kept only for your session and sent only to the LLM provider you choose, never to anyone else.
                     </p>
                     <p className="text-xs text-slate-500 flex items-start gap-2">
                         <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-500" />
