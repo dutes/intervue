@@ -4,7 +4,9 @@
 
 ## ✨ What you get
 
-*   **A tailored panel interview** — questions are anchored to specifics in your CV and the job spec, not generic prompts, and adapt as you answer. The persona shifts each round (supportive → neutral → challenging).
+*   **A tailored panel interview** — questions are anchored to specifics in your CV and the job spec, not generic prompts, and adapt as you answer. The persona shifts each question. (supportive → neutral → challenging).
+*   There are three levels of interview difficulty.
+*   Audio mode supported - You can choose to have the questions spoken to you and you can record your answers.
 *   **Live progress** — a "Question X of Y" meter as you go.
 *   **Per-answer coaching** — strengths, what to improve, and an improved STAR rewrite of your own answer.
 *   **A detailed report** — overall score, strengths/opportunities, competency breakdown, how you handled each interviewer style, a 7-day practice plan, and the full transcript. Export it to PDF with the **Save Report** button.
