@@ -51,6 +51,14 @@ def test_piper_unknown_persona_falls_back_to_neutral_speaker():
     assert cli_piper.DEFAULT_SPEAKER == cli_piper.PERSONA_SPEAKERS["neutral"]
 
 
+def test_normalize_for_speech_strips_markdown_and_collapses_whitespace():
+    raw = "**Bold**  and `code`  with\n\nbreaks and  spaces."
+    cleaned = cli_piper._normalize_for_speech(raw)
+    assert "*" not in cleaned and "`" not in cleaned
+    assert "  " not in cleaned  # whitespace collapsed
+    assert cleaned == "Bold and code with breaks and spaces."
+
+
 def test_piper_unavailable_is_wrapped_as_tts_unavailable(monkeypatch):
     # Point the binary + voice at paths that don't exist so synthesis can't run.
     monkeypatch.setattr(cli_piper, "PIPER_BIN", "/nonexistent/piper-binary-xyz")
