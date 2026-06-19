@@ -127,6 +127,8 @@ export default function InterviewReport() {
     useEffect(() => {
         if (!id) return;
         fetchReport();
+        // Intentionally runs only when the report id changes; fetchReport is stable here.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     const fetchReport = async () => {
@@ -135,8 +137,8 @@ export default function InterviewReport() {
             if (!res.ok) throw new Error("Failed to load report");
             const data = await res.json();
             setReport(data);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {
             setLoading(false);
         }

@@ -76,8 +76,8 @@ export default function NewSession() {
             setUseCustomModel(false);
             if (list.length && !list.includes(model)) setModel(list[0]);
             if (!list.length) setModelsError("No models returned for this provider.");
-        } catch (err: any) {
-            setModelsError(err.message);
+        } catch (err) {
+            setModelsError(err instanceof Error ? err.message : "Could not load models");
         } finally {
             setLoadingModels(false);
         }
@@ -132,8 +132,8 @@ export default function NewSession() {
             if (!res.ok) throw new Error("Upload failed");
             const data = await res.json();
             setCvText(data.text);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {
             setLoading(false);
         }
@@ -167,8 +167,8 @@ export default function NewSession() {
 
             const data = await res.json();
             navigate(`/session/${data.session_id}`);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {
             setLoading(false);
             setStarting(false);
