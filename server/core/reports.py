@@ -13,6 +13,13 @@ from server.core.storage import REPORTS_DIR, save_report
 from server.llm import mock
 from server.llm.schemas import PersonaFeedback
 
+# Chart theming so the matplotlib PNGs blend into the dark slate UI instead of rendering as
+# bright white boxes. Backgrounds are saved transparent; text/grid use light slate tones.
+_CHART_ACCENT = "#6366f1"
+_CHART_TEXT = "#cbd5e1"
+_CHART_MUTED = "#94a3b8"
+_CHART_GRID = "#334155"
+
 
 def _avg(values: List[float]) -> float:
     return sum(values) / len(values) if values else 0.0
@@ -73,11 +80,13 @@ def generate_charts(session_id: str, competency_avgs: Dict[str, float], overall_
 
         # Larger canvas + start at top, going clockwise, so labels have room.
         fig = plt.figure(figsize=(9, 9))
+        fig.patch.set_alpha(0)
         ax = plt.subplot(111, polar=True)
+        ax.set_facecolor("none")
         ax.set_theta_offset(math.pi / 2)
         ax.set_theta_direction(-1)
-        ax.plot(loop_angles, loop_values, "o-", linewidth=2, color="#6366f1")
-        ax.fill(loop_angles, loop_values, alpha=0.25, color="#6366f1")
+        ax.plot(loop_angles, loop_values, "o-", linewidth=2, color=_CHART_ACCENT)
+        ax.fill(loop_angles, loop_values, alpha=0.25, color=_CHART_ACCENT)
 
         # Wrap long competency names onto multiple lines and push them off the plot.
         wrapped = ["\n".join(textwrap.wrap(lbl, 16)) for lbl in labels]
@@ -86,6 +95,7 @@ def generate_charts(session_id: str, competency_avgs: Dict[str, float], overall_
 
         # Align each label to the side it sits on so it leans away from the chart.
         for label, angle in zip(ax.get_xticklabels(), angles):
+            label.set_color(_CHART_TEXT)
             deg = math.degrees(angle)
             if deg in (0, 180):
                 label.set_horizontalalignment("center")
@@ -95,27 +105,35 @@ def generate_charts(session_id: str, competency_avgs: Dict[str, float], overall_
                 label.set_horizontalalignment("right")
 
         ax.set_ylim(0, 100)
+        ax.tick_params(axis="y", colors=_CHART_MUTED)
+        ax.grid(color=_CHART_GRID, alpha=0.5)
+        ax.spines["polar"].set_color(_CHART_GRID)
         fig.subplots_adjust(left=0.22, right=0.78, top=0.82, bottom=0.18)
-        plt.savefig(radar_path, dpi=120, bbox_inches="tight")
+        plt.savefig(radar_path, dpi=120, bbox_inches="tight", transparent=True)
         plt.close(fig)
 
     fig = plt.figure(figsize=(7, 4))
+    fig.patch.set_alpha(0)
     ax = plt.gca()
+    ax.set_facecolor("none")
     xs = list(range(1, len(overall_scores) + 1))
-    ax.plot(xs, overall_scores, marker="o", color="#6366f1", linewidth=2)
-    ax.fill_between(xs, overall_scores, color="#6366f1", alpha=0.12)
-    ax.set_xlabel("Question #")
-    ax.set_ylabel("Overall Score")
+    ax.plot(xs, overall_scores, marker="o", color=_CHART_ACCENT, linewidth=2)
+    ax.fill_between(xs, overall_scores, color=_CHART_ACCENT, alpha=0.12)
+    ax.set_xlabel("Question #", color=_CHART_TEXT)
+    ax.set_ylabel("Overall Score", color=_CHART_TEXT)
     ax.set_ylim(0, 100)
     if xs:
         ax.set_xticks(xs)
-    ax.set_title("Score Over Time")
-    ax.grid(axis="y", alpha=0.2)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    ax.set_title("Score Over Time", color=_CHART_TEXT)
+    ax.tick_params(colors=_CHART_MUTED)
+    ax.grid(axis="y", alpha=0.2, color=_CHART_GRID)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(_CHART_GRID)
     line_path = report_dir / "score_over_time.png"
     plt.tight_layout()
-    plt.savefig(line_path, dpi=120)
+    plt.savefig(line_path, dpi=120, transparent=True)
     plt.close(fig)
 
     return {
@@ -217,15 +235,20 @@ def build_report(session: Dict[str, Any], api_key: str | None = None) -> Tuple[D
     persona_avgs = compute_persona_averages(scores)
     report_paths = generate_charts(session["session_id"], competency_avgs, overall_scores)
 
+    # The headline overall score is the numeric average from the scoring pipeline, so it stays
+    # consistent with the per-question / persona / competency figures shown elsewhere. The LLM
+    # grading call supplies only the *qualitative* assessment (strengths, weaknesses, the panel
+    # verdict) — previously it also produced its own overall number, which could contradict the
+    # averages (e.g. a 65 headline over ~38 averages).
+    overall_score = heuristic_score
+
     try:
         grading_result = grading.generate_report(session, api_key=api_key)
-        overall_score = round(grading_result["overall_score"] * 100, 2)
         strengths = grading_result["strengths"]
         weaknesses = grading_result["weaknesses"]
         persona_feedback = grading_result["persona_feedback"]
     except Exception as e:
         print(f"LLM Grading failed, falling back to heuristics: {e}")
-        overall_score = heuristic_score
         sorted_competencies = sorted(competency_avgs.items(), key=lambda item: item[1], reverse=True)
         strengths = [name for name, _ in sorted_competencies[:3]]
         weaknesses = [name for name, _ in sorted_competencies[-3:]]

@@ -77,11 +77,25 @@ function panelInsight(pa: Record<string, number>): string | null {
 function verdictLabel(nextStep: string): string {
     const s = (nextStep || "").trim().toLowerCase();
     if (!s) return "";
-    if (/\bno[\s-]?hire\b/.test(s) || s.startsWith("no ")) return "No Hire";
-    if (/\bstrong hire\b/.test(s)) return "Strong Hire";
-    if (/\bfollow[\s-]?up\b/.test(s)) return "Follow-up";
-    if (/\bhire\b/.test(s)) return "Hire";
-    return "";
+    // The verdict is whichever phrase appears FIRST — the model leads with it ("Follow-up — …").
+    // Matching by fixed priority instead wrongly returned "Strong Hire" for a "Follow-up" that
+    // merely mentioned "strong hire" later in the paragraph.
+    const patterns: [RegExp, string][] = [
+        [/\bno[\s-]?hire\b/, "No Hire"],
+        [/\bstrong hire\b/, "Strong Hire"],
+        [/\bfollow[\s-]?up\b/, "Follow-up"],
+        [/\bhire\b/, "Hire"],
+    ];
+    let best = "";
+    let bestIndex = Infinity;
+    for (const [re, label] of patterns) {
+        const match = s.match(re);
+        if (match && match.index !== undefined && match.index < bestIndex) {
+            bestIndex = match.index;
+            best = label;
+        }
+    }
+    return best;
 }
 
 // Color the verdict pill based on the extracted label (not a naive substring of the paragraph).

@@ -49,10 +49,19 @@ else:
 
 app = FastAPI()
 
+# The SPA is served same-origin in production, so cross-origin requests are only needed for
+# local dev (Vite on :5173 hitting the API on :8000). Restrict to an allow-list instead of "*"
+# so an arbitrary site can't read session data (CVs, answers) from a logged-in user's browser.
+# Credentials are off: the BYO API key travels in the request body, not cookies.
+_DEFAULT_CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
+CORS_ALLOW_ORIGINS = [
+    o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", _DEFAULT_CORS_ORIGINS).split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ALLOW_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -156,11 +165,15 @@ def _get_session(session_id: str) -> SessionState:
     if session_id in SESSIONS:
         return SESSIONS[session_id]
     payload = load_session_state(session_id)
+    # Older DB rows stored start_round as FLOAT (the column predates the Integer model and
+    # create_all() won't alter it), which later breaks list slicing ("slice indices must be
+    # integers"). Coerce on load so resume works regardless of the stored column type.
+    start_round = int(payload.get("start_round") or 1)
     state = SessionState(
         payload["job_spec"],
         payload["cv_text"],
         payload["provider"],
-        payload.get("start_round", 1),
+        start_round,
         model=payload.get("model"),
         base_url=payload.get("base_url"),
     )
@@ -169,7 +182,7 @@ def _get_session(session_id: str) -> SessionState:
     state.rubric = payload.get("rubric")
     state.persona = payload.get("persona")
     state.cv_analysis = payload.get("cv_analysis")
-    state.start_round = payload.get("start_round", 1)
+    state.start_round = start_round
     state.questions = payload.get("questions", [])
     state.answers = payload.get("answers", [])
     state.scores = payload.get("scores", [])
