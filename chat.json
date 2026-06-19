@@ -1,6 +1,0 @@
-﻿{
-  "model": "gpt-5.2-chat-latest",
-  "messages": [
-    {"role": "user", "content": "ping"}
-  ]
-}
