@@ -14,6 +14,14 @@ env/
 data/
 *.log
 
+# Local scratch / debug request payloads — never commit (may contain CV/job-spec or keys)
+/ans.json
+/answer*.json
+/body.json
+/chat*.json
+/start*.json
+/can_i_write.txt
+
 # OS / IDE
 .DS_Store
 Thumbs.db
