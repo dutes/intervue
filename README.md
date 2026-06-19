@@ -1,12 +1,19 @@
 # Intervue
 
-**Intervue** is an AI-powered interview practice tool designed to help you prepare for real-world job interviews. You give it a job spec and your CV, and it runs a multi-round interview panel (Screening, Deep Dive, Challenge), asks pointed questions tailored to your background, and gives you instant, answer-specific feedback.
+[![CI](https://github.com/dutes/intervue/actions/workflows/ci.yml/badge.svg)](https://github.com/dutes/intervue/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
+**Practice interviews against a three-person AI panel that actually pushes back.** Give it a job spec and your CV, and Intervue runs a tailored, escalating interview — a supportive screener, a neutral evaluator, and a sharp challenger, each a distinct named interviewer with its own neural voice — then scores you and coaches every answer.
+
+![Intervue demo](media/intervue-demo.gif)
+
+You bring your own model (OpenAI, Anthropic, Gemini, a local model, or Mock); it runs in Docker, works offline with a local model, and your data stays on your machine.
 
 ## ✨ What you get
 
-*   **A tailored panel interview** — questions are anchored to specifics in your CV and the job spec, not generic prompts, and adapt as you answer. The persona shifts each question. (supportive → neutral → challenging).
-*   There are three levels of interview difficulty.
-*   Audio mode supported - You can choose to have the questions spoken to you and you can record your answers.
+*   **A three-person panel** — each question is asked by one of three named interviewers (supportive, neutral, challenging), rotating as you go, with questions anchored to specifics in your CV and the job spec — not generic prompts — that adapt as you answer.
+*   **Escalating difficulty** — three rounds (Screening → Deep Dive → Challenge) that ramp from warm-up to pressure-test. Start at any round.
+*   **Read-aloud with real voices** — optional local **neural** text-to-speech (Piper), so questions are spoken in natural, distinct voices rather than the robotic browser default. You can answer by voice too. Runs offline, no API key.
 *   **Live progress** — a "Question X of Y" meter as you go.
 *   **Per-answer coaching** — strengths, what to improve, and an improved STAR rewrite of your own answer.
 *   **A detailed report** — overall score, strengths/opportunities, competency breakdown, how you handled each interviewer style, a 7-day practice plan, and the full transcript. Export it to PDF with the **Save Report** button.
