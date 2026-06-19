@@ -26,7 +26,7 @@ interface Question {
 interface Session {
     session_id: string;
     status: string;
-    questions: any[];
+    questions: Question[];
     start_round: number;
 }
 
@@ -60,6 +60,30 @@ interface AnswerFeedback {
     delivery?: Delivery;
 }
 
+// Minimal Web Speech API typings — not in lib.dom, so we declare just what we use.
+interface SpeechRecognitionAlternativeLike {
+    transcript: string;
+}
+interface SpeechRecognitionResultLike {
+    isFinal: boolean;
+    [index: number]: SpeechRecognitionAlternativeLike;
+}
+interface SpeechRecognitionEventLike {
+    resultIndex: number;
+    results: ArrayLike<SpeechRecognitionResultLike>;
+}
+interface SpeechRecognitionLike {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    onstart: (() => void) | null;
+    onend: (() => void) | null;
+    onerror: ((event: { error: string }) => void) | null;
+    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+    start: () => void;
+    stop: () => void;
+}
+
 export default function Interview() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -76,7 +100,7 @@ export default function Interview() {
     // The question this feedback belongs to. Captured at submit time, because by the time the
     // coaching card renders, currentQuestion has already advanced to the next question.
     const [feedbackQuestion, setFeedbackQuestion] = useState<Question | null>(null);
-    const recognitionRef = useRef<any>(null);
+    const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     // Delivery timing: when the candidate started composing, and whether they used voice.
     const answerStartRef = useRef<number | null>(null);
@@ -123,6 +147,8 @@ export default function Interview() {
     useEffect(() => {
         if (!id) return;
         fetchSession();
+        // Intentionally runs only when the session id changes; fetchSession is stable here.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     const fetchSession = async () => {
@@ -137,8 +163,8 @@ export default function Interview() {
             } else {
                 await fetchNextQuestion();
             }
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong");
             setLoading(false);
         }
     };
@@ -158,8 +184,8 @@ export default function Interview() {
             }
             const data = await res.json();
             setCurrentQuestion(data);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {
             setLoading(false);
             setPhase(null);
@@ -203,8 +229,8 @@ export default function Interview() {
             setFeedbackQuestion(currentQuestion);
             setAnswer("");
             await fetchNextQuestion();
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {
             setSubmitting(false);
         }
@@ -231,26 +257,28 @@ export default function Interview() {
         usedVoiceRef.current = true;
         if (answerStartRef.current === null) answerStartRef.current = Date.now();
 
-        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = "en-US";
-
-        recognitionRef.current.onstart = () => {
-            setIsRecording(true);
+        const w = window as unknown as {
+            SpeechRecognition?: new () => SpeechRecognitionLike;
+            webkitSpeechRecognition?: new () => SpeechRecognitionLike;
         };
+        const SpeechRecognitionCtor = w.SpeechRecognition || w.webkitSpeechRecognition;
+        if (!SpeechRecognitionCtor) return;
 
-        recognitionRef.current.onend = () => {
-            setIsRecording(false);
-        };
+        const recognition = new SpeechRecognitionCtor();
+        recognitionRef.current = recognition;
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
 
-        recognitionRef.current.onerror = (event: any) => {
+        recognition.onstart = () => setIsRecording(true);
+        recognition.onend = () => setIsRecording(false);
+
+        recognition.onerror = (event) => {
             console.error("Speech recognition error", event.error);
             setIsRecording(false);
         };
 
-        recognitionRef.current.onresult = (event: any) => {
+        recognition.onresult = (event) => {
             let finalTranscript = "";
             for (let i = event.resultIndex; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) {
@@ -262,7 +290,7 @@ export default function Interview() {
             }
         };
 
-        recognitionRef.current.start();
+        recognition.start();
     };
 
     const stopRecording = () => {
