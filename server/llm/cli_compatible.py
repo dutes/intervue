@@ -60,9 +60,14 @@ def call_compatible(
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
-        # Best-effort JSON mode; servers that don't support it ignore it, and the prompt
-        # already instructs the model to return strict JSON.
-        "response_format": {"type": "json_object"},
+        # NOTE: we deliberately do NOT send response_format here.
+        # OpenAI's older {"type": "json_object"} flag is not universally accepted:
+        # Ollama ignores it, but LM Studio *rejects* it ("response_format.type must be
+        # 'json_schema' or 'text'"), which breaks any local session against LM Studio.
+        # The prompts already instruct strict-JSON output, and dispatch retries any
+        # non-JSON reply via JSON_FIX_PROMPT, so forcing a format buys nothing and
+        # costs portability. Leaving it off works across LM Studio, Ollama, vLLM,
+        # and llama.cpp alike.
     }
 
     raw = _run_curl(_endpoint(base_url), payload, api_key=api_key)
