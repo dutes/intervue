@@ -1,164 +1,121 @@
+"""Client for any OpenAI-compatible Chat Completions endpoint.
+
+This covers local model runners (Ollama, LM Studio, vLLM, llama.cpp server, etc.) and
+any third-party host that implements the OpenAI `/chat/completions` API. The user supplies
+a base URL (e.g. http://localhost:11434/v1) and a model name; the API key is optional because
+most local servers don't require one.
+"""
 from __future__ import annotations
 
-import sys
-from typing import List
+import json
+import os
+import subprocess
+from typing import Any, Dict
 
-import requests
-import typer
-from rich import box
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-
-API_URL = "http://127.0.0.1:8000"
-app = typer.Typer()
-console = Console()
+# Env-tunable generation timeout; local models can be slow. Listing models stays short.
+REQUEST_TIMEOUT = int(os.getenv("LLM_REQUEST_TIMEOUT", "120"))
 
 
-def read_multiline(prompt: str) -> str:
-    console.print(Panel(prompt, title="Input", box=box.ROUNDED))
-    console.print("Enter text. Finish with a single line containing END.")
-    lines: List[str] = []
-    while True:
-        line = input()
-        if line.strip() == "END":
-            break
-        lines.append(line)
-    return "\n".join(lines).strip()
+def _endpoint(base_url: str) -> str:
+    base = base_url.rstrip("/")
+    # Allow the user to pass either ".../v1" or the full ".../v1/chat/completions".
+    if base.endswith("/chat/completions"):
+        return base
+    return f"{base}/chat/completions"
 
 
-def choose_provider() -> str:
-    provider = typer.prompt("Choose provider: openai / gemini / mock", default="openai")
-    return provider.strip().lower()
+def _run_curl(url: str, payload: Dict[str, Any], api_key: str | None = None) -> str:
+    headers = ["-H", "Content-Type: application/json"]
+    if api_key:
+        headers += ["-H", f"Authorization: Bearer {api_key}"]
+    cmd = [
+        "curl",
+        "-sS",
+        "-X",
+        "POST",
+        url,
+        *headers,
+        "-d",
+        json.dumps(payload),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=REQUEST_TIMEOUT, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"Local LLM curl error: {result.stderr.strip()}")
+    return result.stdout
 
 
-def prompt_api_key(provider: str) -> str | None:
-    if provider not in {"openai", "gemini"}:
-        return None
-    key = typer.prompt(
-        f"Enter {provider} API key (leave blank to use server env)",
-        default="",
-        show_default=False,
-        hide_input=True,
-    )
-    return key.strip() or None
+def call_compatible(
+    prompt: str,
+    temperature: float = 0.2,
+    api_key: str | None = None,
+    model: str | None = None,
+    base_url: str | None = None,
+) -> str:
+    if not base_url:
+        raise RuntimeError("A base URL is required for a local/custom OpenAI-compatible model")
+    if not model:
+        raise RuntimeError("A model name is required for a local/custom OpenAI-compatible model")
 
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
+        # NOTE: we deliberately do NOT send response_format here.
+        # OpenAI's older {"type": "json_object"} flag is not universally accepted:
+        # Ollama ignores it, but LM Studio *rejects* it ("response_format.type must be
+        # 'json_schema' or 'text'"), which breaks any local session against LM Studio.
+        # The prompts already instruct strict-JSON output, and dispatch retries any
+        # non-JSON reply via JSON_FIX_PROMPT, so forcing a format buys nothing and
+        # costs portability. Leaving it off works across LM Studio, Ollama, vLLM,
+        # and llama.cpp alike.
+    }
 
-def start_session(provider: str, job_spec: str, cv_text: str, api_key: str | None) -> str:
-    response = requests.post(
-        f"{API_URL}/sessions/start",
-        json={
-            "job_spec": job_spec,
-            "cv_text": cv_text,
-            "provider": provider,
-            "api_key": api_key,
-        },
-        timeout=60,
-    )
-    if response.status_code != 200:
-        raise RuntimeError(response.json().get("detail", "Failed to start session"))
-    return response.json()["session_id"]
-
-
-@app.command()
-def main() -> None:
-    console.print(Panel("Interview Game", style="bold cyan"))
-
+    raw = _run_curl(_endpoint(base_url), payload, api_key=api_key)
     try:
-        health = requests.get(f"{API_URL}/health", timeout=5)
-        if health.status_code != 200:
-            console.print("Server health check failed.")
-            raise typer.Exit(code=1)
-    except requests.RequestException as exc:
-        console.print(f"Unable to reach server: {exc}")
-        raise typer.Exit(code=1) from exc
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Local LLM returned non-JSON response: {raw[:200]}") from exc
 
-    provider = choose_provider()
-    api_key = prompt_api_key(provider)
-    job_spec = read_multiline("Paste the job specification.")
-    cv_text = read_multiline("Paste your CV/resume text.")
+    err = data.get("error")
+    if err:
+        raise RuntimeError(f"Local LLM API error: {err}")
 
-    while True:
-        try:
-            session_id = start_session(provider, job_spec, cv_text, api_key)
-            break
-        except RuntimeError as exc:
-            console.print(f"[red]LLM connectivity failed:[/red] {exc}")
-            if "API_KEY is not set" in str(exc) and provider in {"openai", "gemini"}:
-                console.print("[yellow]API key missing. Please enter it to continue.[/yellow]")
-                api_key = prompt_api_key(provider)
-                if api_key:
-                    continue
-            action = typer.prompt("Retry / switch / mock / exit", default="retry").strip().lower()
-            if action == "retry":
-                continue
-            if action == "switch":
-                provider = choose_provider()
-                api_key = prompt_api_key(provider)
-                continue
-            if action == "mock":
-                provider = "mock"
-                api_key = None
-                continue
-            raise typer.Exit(code=1)
+    choices = data.get("choices", [])
+    if not choices:
+        raise RuntimeError("Local LLM response missing choices")
+    content = choices[0].get("message", {}).get("content", "")
+    if not content:
+        raise RuntimeError("Local LLM response missing message content")
 
-    console.print(f"Session started: {session_id}")
-
-    total_questions = 5
-    for _ in range(total_questions):
-        q_resp = requests.post(f"{API_URL}/sessions/{session_id}/next_question", timeout=60)
-        if q_resp.status_code != 200:
-            console.print("Interview complete or failed to fetch question.")
-            break
-        question = q_resp.json()
-        console.print(Panel(question["text"], title=f"{question['round']} ({question['persona']})"))
-        answer = read_multiline("Your answer:")
-        a_resp = requests.post(
-            f"{API_URL}/sessions/{session_id}/answer",
-            json={"question_id": question["question_id"], "answer_text": answer},
-            timeout=60,
-        )
-        if a_resp.status_code != 200:
-            console.print("Failed to submit answer.")
-            break
-
-    end_resp = requests.post(f"{API_URL}/sessions/{session_id}/end", timeout=60)
-    if end_resp.status_code != 200:
-        console.print("Failed to close session.")
-        raise typer.Exit(code=1)
-
-    payload = end_resp.json()
-    summary = payload["summary"]
-    report_paths = payload["report_paths"]
-
-    console.print(Panel(f"Overall Score: {summary['overall_score']}", title="Results"))
-
-    table = Table(title="Strengths / Weaknesses", box=box.SIMPLE)
-    table.add_column("Strengths")
-    table.add_column("Weaknesses")
-    max_len = max(len(summary["strengths"]), len(summary["weaknesses"]))
-    for i in range(max_len):
-        strength = summary["strengths"][i] if i < len(summary["strengths"]) else ""
-        weakness = summary["weaknesses"][i] if i < len(summary["weaknesses"]) else ""
-        table.add_row(strength, weakness)
-    console.print(table)
-
-    for feedback in summary["persona_feedback"]:
-        panel_lines = [
-            "[bold]Positives[/bold]",
-            *[f"- {item}" for item in feedback["positives"]],
-            "",
-            "[bold]Concerns[/bold]",
-            *[f"- {item}" for item in feedback["concerns"]],
-            "",
-            f"[bold]Next:[/bold] {feedback['next_step']}",
-        ]
-        console.print(Panel("\n".join(panel_lines), title=f"{feedback['persona'].title()} Interviewer"))
-
-    console.print("Report assets saved:")
-    for name, path in report_paths.items():
-        console.print(f"- {name}: {path}")
+    return content.strip()
 
 
-if __name__ == "__main__":
-    app()
+def test_connection(api_key: str | None = None, model: str | None = None, base_url: str | None = None) -> None:
+    prompt = "Return STRICT JSON only: {\"ok\": true}"
+    _ = call_compatible(prompt, temperature=0, api_key=api_key, model=model, base_url=base_url)
+
+
+def _models_endpoint(base_url: str) -> str:
+    base = base_url.rstrip("/")
+    if base.endswith("/models"):
+        return base
+    return f"{base}/models"
+
+
+def list_models(api_key: str | None = None, base_url: str | None = None) -> list[str]:
+    if not base_url:
+        raise RuntimeError("A base URL is required to list local/custom models")
+    headers = []
+    if api_key:
+        headers = ["-H", f"Authorization: Bearer {api_key}"]
+    cmd = ["curl", "-sS", _models_endpoint(base_url), *headers]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=20, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"Local LLM curl error: {result.stderr.strip()}")
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Local LLM returned non-JSON for model list: {result.stdout[:200]}") from exc
+    if isinstance(data, dict) and data.get("error"):
+        raise RuntimeError(f"Local LLM API error: {data['error']}")
+    return [m.get("id", "") for m in data.get("data", []) if m.get("id")]
