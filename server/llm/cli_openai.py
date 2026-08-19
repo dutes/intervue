@@ -51,6 +51,17 @@ def _run_curl(payload: Dict[str, Any], api_key: str | None = None) -> str:
     return result.stdout
 
 
+def _unsupported_temperature(err: Any) -> bool:
+    """True if the API rejected the request solely because this model doesn't
+    accept `temperature`. Newer reasoning models (gpt-5.x, o-series) omit it."""
+    if not isinstance(err, dict):
+        return False
+    if err.get("param") == "temperature":
+        return True
+    msg = str(err.get("message", "")).lower()
+    return "temperature" in msg and "unsupported" in msg
+
+
 def call_openai(prompt: str, temperature: float = 0.2, api_key: str | None = None, model: str | None = None) -> str:
     payload = {
         "model": model or DEFAULT_MODEL,
@@ -64,6 +75,12 @@ def call_openai(prompt: str, temperature: float = 0.2, api_key: str | None = Non
 
     # Responses API includes "error": null on success, so only fail if it's truthy.
     err = data.get("error")
+    if err and _unsupported_temperature(err):
+        # This model doesn't accept `temperature`; retry once without it.
+        payload.pop("temperature", None)
+        raw = _run_curl(payload, api_key=api_key)
+        data = json.loads(raw)
+        err = data.get("error")
     if err:
         raise RuntimeError(f"OpenAI API error: {err}")
 

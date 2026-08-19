@@ -43,6 +43,16 @@ def _run_curl(payload: Dict[str, Any], api_key: str | None = None) -> str:
     return result.stdout
 
 
+def _unsupported_temperature(err: Any) -> bool:
+    """True if the request was rejected because this model doesn't accept
+    `temperature`. Current Claude models (Opus 4.7/4.8, Opus 5, Sonnet 5,
+    Fable 5) removed the sampling params and 400 when one is sent. Anthropic's
+    error carries no `param` field, so match on the message text."""
+    if not isinstance(err, dict):
+        return False
+    return "temperature" in str(err.get("message", "")).lower()
+
+
 def call_anthropic(prompt: str, temperature: float = 0.2, api_key: str | None = None, model: str | None = None) -> str:
     payload = {
         "model": model or DEFAULT_MODEL,
@@ -56,6 +66,12 @@ def call_anthropic(prompt: str, temperature: float = 0.2, api_key: str | None = 
     data = json.loads(raw)
 
     err = data.get("error")
+    if err and _unsupported_temperature(err):
+        # This model doesn't accept `temperature`; retry once without it.
+        payload.pop("temperature", None)
+        raw = _run_curl(payload, api_key=api_key)
+        data = json.loads(raw)
+        err = data.get("error")
     if err:
         raise RuntimeError(f"Anthropic API error: {err}")
 
